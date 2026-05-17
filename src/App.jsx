@@ -563,6 +563,15 @@ export default function App() {
               </button>
             </div>
 
+            {musicService === 'local' && (
+              <button
+                className="settings-theme-btn"
+                onClick={loadLocalPlaylist}
+              >
+                reload
+              </button>
+            )}
+
             {musicService === 'spotify' && (
               !spotifyConnected ? (
                 <button className="settings-theme-btn" onClick={() => spotifyLogin()}>
