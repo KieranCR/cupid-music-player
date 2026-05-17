@@ -1,19 +1,28 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import playlist from './playlist';
 
 /**
  * Local audio player hook (HTML5 Audio).
  *
- * When used directly, plays from the local playlist.
- * The App component chooses between this and useSpotifyPlayer
- * based on the active source.
+ * Tracks come from the user's editable playlist (audio/playlist.json),
+ * loaded in App via window.cupid.getLocalPlaylist(). Files are resolved
+ * to file:// URLs through getAudioPath so spaces/Unicode work correctly.
  */
-export default function useAudioPlayer(playMode = 'normal') {
+export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath) {
   const audioRef = useRef(new Audio());
   const playModeRef = useRef(playMode);
   playModeRef.current = playMode;
   const [trackIndex, setTrackIndex] = useState(0);
+
+  // Reset index when the playlist array changes (mirrors useSpotifyPlayer)
+  const prevTracksRef = useRef(tracks);
+  if (prevTracksRef.current !== tracks) {
+    prevTracksRef.current = tracks;
+    if (trackIndex >= tracks.length) setTrackIndex(0);
+  }
+
   const [isPlaying, setIsPlaying] = useState(false);
+  const isPlayingRef = useRef(false);
+  isPlayingRef.current = isPlaying;
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -23,22 +32,37 @@ export default function useAudioPlayer(playMode = 'normal') {
   });
   const [muted, setMuted] = useState(false);
 
-  const track = playlist[trackIndex];
+  const track = tracks[trackIndex] ?? { title: 'No track', artist: '', file: '', art: null };
   const audio = audioRef.current;
   audio.volume = muted ? 0 : volume;
 
-  // Load track when index changes
+  // Load track when index or tracks change
   useEffect(() => {
-    audio.src = `./${track.file}`;
-    audio.load();
-    setProgress(0);
-    setCurrentTime(0);
-    setDuration(0);
+    const t = tracks[trackIndex];
+    if (!t || !t.file) return;
 
-    if (isPlaying) {
-      audio.play().catch(() => {});
-    }
-  }, [trackIndex]);
+    let cancelled = false;
+    (async () => {
+      let src;
+      if (getAudioPath) {
+        src = await getAudioPath(t.file);
+      } else {
+        // Browser/preview fallback — Vite serves audio/ as publicDir
+        src = `./${t.file}`;
+      }
+      if (cancelled || !src) return;
+      audio.src = src;
+      audio.load();
+      setProgress(0);
+      setCurrentTime(0);
+      setDuration(0);
+      if (isPlayingRef.current) {
+        audio.play().catch(() => {});
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [trackIndex, tracks]);
 
   // Time update listener
   useEffect(() => {
@@ -60,12 +84,13 @@ export default function useAudioPlayer(playMode = 'normal') {
         return;
       }
       setTrackIndex((prev) => {
+        if (tracks.length === 0) return 0;
         if (playModeRef.current === 'shuffle') {
           let next;
-          do { next = Math.floor(Math.random() * playlist.length); } while (next === prev && playlist.length > 1);
+          do { next = Math.floor(Math.random() * tracks.length); } while (next === prev && tracks.length > 1);
           return next;
         }
-        return (prev + 1) % playlist.length;
+        return (prev + 1) % tracks.length;
       });
     };
 
@@ -78,7 +103,7 @@ export default function useAudioPlayer(playMode = 'normal') {
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('ended', onEnded);
     };
-  }, []);
+  }, [tracks]);
 
   const play = useCallback(() => {
     audio.play().catch(() => {});
@@ -97,22 +122,26 @@ export default function useAudioPlayer(playMode = 'normal') {
 
   const next = useCallback(() => {
     setTrackIndex((prev) => {
-      if (playModeRef.current === 'shuffle' && playlist.length > 1) {
+      if (tracks.length === 0) return 0;
+      if (playModeRef.current === 'shuffle' && tracks.length > 1) {
         let n;
-        do { n = Math.floor(Math.random() * playlist.length); } while (n === prev);
+        do { n = Math.floor(Math.random() * tracks.length); } while (n === prev);
         return n;
       }
-      return (prev + 1) % playlist.length;
+      return (prev + 1) % tracks.length;
     });
-  }, []);
+  }, [tracks]);
 
   const prev = useCallback(() => {
     if (audio.currentTime > 3) {
       audio.currentTime = 0;
     } else {
-      setTrackIndex((prev) => (prev - 1 + playlist.length) % playlist.length);
+      setTrackIndex((p) => {
+        if (tracks.length === 0) return 0;
+        return (p - 1 + tracks.length) % tracks.length;
+      });
     }
-  }, []);
+  }, [tracks]);
 
   const seek = useCallback((fraction) => {
     if (audio.duration) {

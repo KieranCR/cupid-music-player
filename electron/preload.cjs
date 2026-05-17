@@ -10,4 +10,7 @@ contextBridge.exposeInMainWorld('cupid', {
   setTheme: (theme) => ipcRenderer.send('set-theme', theme),
   getStreamUrl: (title, artist) => ipcRenderer.invoke('get-stream-url', title, artist),
   getAppleMusicToken: () => ipcRenderer.invoke('get-apple-music-token'),
+  getLocalPlaylist: () => ipcRenderer.invoke('get-local-playlist'),
+  getLocalAudioPath: (filename) => ipcRenderer.invoke('get-local-audio-path', filename),
+  openMusicFolder: () => ipcRenderer.invoke('open-music-folder'),
 });

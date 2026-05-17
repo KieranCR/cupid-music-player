@@ -24,23 +24,38 @@ npm run dev
 
 ## Adding Local Audio Files
 
-1. Create an `audio/` folder in the project root (if it doesn't exist)
-2. Drop your `.mp3` files into the `audio/` folder
-3. Make sure your MP3 files have embedded metadata (title, artist, album art) — the player reads these automatically
-4. Restart the app
+The local playlist is driven by a single file, `playlist.json`, that lives next to your audio files. Drop your songs into the audio folder, list them in the JSON, and the player picks them up.
 
-The player uses the [music-metadata](https://github.com/borewit/music-metadata) library to extract track info and album art from your MP3 files. Files without metadata will still play but may show as "Unknown".
+### Where the audio folder lives
+
+- **Running from source (dev):** `audio/` in the project root.
+- **Installed app (macOS):** `~/Library/Application Support/Cupid Player/audio/`
+- **Installed app (Windows):** `%APPDATA%\Cupid Player\audio\`
+- **Installed app (Linux):** `~/.config/Cupid Player/audio/`
+
+On first launch, the installed app seeds this folder with the bundled defaults. After that it's yours to edit — the app never overwrites it.
+
+### Building your playlist
+
+1. Drop `.mp3` files into the audio folder.
+2. Open `playlist.json` in the same folder and add one entry per song:
+
+   ```json
+   [
+     { "file": "my-song.mp3", "title": "My Song", "artist": "Some Artist", "album": "Album Name", "art": "https://example.com/cover.jpg" },
+     { "file": "another.mp3", "title": "Another Song", "artist": "Someone Else" }
+   ]
+   ```
+
+   - `file` and `title` are required.
+   - `artist`, `album`, and `art` are optional. `art` is a URL to a cover image.
+   - The `file` value must match the mp3 filename exactly (spaces and case included).
+
+3. In the app, hit the settings icon and the local tab is selected by default. Reload the app to pick up new edits — `playlist.json` is read on launch.
 
 ### Supported formats
 
-- `.mp3` — recommended, widely supported with ID3 tags
-
-### Adding metadata to your MP3s
-
-If your files are missing metadata, you can add it with tools like:
-- [MP3Tag](https://www.mp3tag.de/en/) (Windows)
-- [Kid3](https://kid3.kde.org/) (Mac/Linux/Windows)
-- iTunes/Music.app — right-click a song > Get Info
+`.mp3`, `.m4a`, `.aac`, `.flac`, `.wav`, `.ogg`, `.opus`.
 
 ## Spotify Setup
 
@@ -96,4 +111,3 @@ cp -r "out/mac-arm64/Cupid Player.app" /Applications/
 - **CSS** — custom properties for theming, calc-based responsive scaling
 - **Node.js** — main process (JWT generation, yt-dlp execution)
 - **jsonwebtoken** — Apple Music developer token generation
-- **music-metadata** — MP3 ID3 tag extraction (title, artist, album art)

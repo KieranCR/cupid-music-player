@@ -80,14 +80,27 @@ export default function App() {
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const [loadingPlaylist, setLoadingPlaylist] = useState(false);
   const [settingsError, setSettingsError] = useState(null);
-  const [musicService, setMusicService] = useState('spotify');
+  const [musicService, setMusicService] = useState('local'); // 'spotify' | 'apple' | 'local'
   const [playMode, setPlayMode] = useState('normal'); // 'normal' | 'shuffle' | 'repeat'
   const [volumeHovered, setVolumeHovered] = useState(false);
   const [volumeDragging, setVolumeDragging] = useState(false);
   const volumeBarRef = useRef(null);
   const [showDebug] = useState(false);
+  const [localTracks, setLocalTracks] = useState([]);
 
-  const local = useAudioPlayer(playMode);
+  const loadLocalPlaylist = useCallback(async () => {
+    if (!window.cupid?.getLocalPlaylist) return;
+    try {
+      const tracks = await window.cupid.getLocalPlaylist();
+      setLocalTracks(Array.isArray(tracks) ? tracks : []);
+    } catch (err) {
+      console.error('Failed to load local playlist:', err);
+    }
+  }, []);
+
+  useEffect(() => { loadLocalPlaylist(); }, [loadLocalPlaylist]);
+
+  const local = useAudioPlayer(localTracks, playMode, window.cupid?.getLocalAudioPath);
   const streaming = useSpotifyPlayer(streamTracks, playMode);
   const player = source === 'streaming' ? streaming : local;
 
@@ -122,12 +135,12 @@ export default function App() {
   }, []);
 
   // ── Fetch Apple Music playlists ────────────────────────
-  const loadApplePlaylists = useCallback(() => {
+  const loadApplePlaylists = useCallback((silent = false) => {
     setLoadingPlaylists(true);
-    setSettingsError(null);
+    if (!silent) setSettingsError(null);
     fetchApplePlaylists()
-      .then(setApplePlaylists)
-      .catch((err) => setSettingsError(err.message))
+      .then((p) => { setApplePlaylists(p); setSettingsError(null); })
+      .catch((err) => { if (!silent) setSettingsError(err.message); })
       .finally(() => setLoadingPlaylists(false));
   }, []);
 
@@ -146,7 +159,7 @@ export default function App() {
         }
       } else {
         if (isSpotifyLoggedIn()) loadSpotifyPlaylists(true);
-        if (isAppleLoggedIn()) loadApplePlaylists();
+        if (isAppleLoggedIn()) loadApplePlaylists(true);
       }
     }
     checkCallback();
@@ -226,7 +239,9 @@ export default function App() {
     };
   }, [volumeDragging, setVolume]);
   const [needleChangeFrame, setNeedleChangeFrame] = useState(0);
-  const prevTrackRef = useRef(track.title);
+  // null sentinel = haven't seen any track yet; 'No track' = placeholder while
+  // tracks load async. Both should silently set the ref without animating.
+  const prevTrackRef = useRef(null);
 
   const currentFrames = isPink ? assets.recordFramesA : assets.recordFramesB;
   const incomingFrames = isPink ? assets.recordFramesB : assets.recordFramesA;
@@ -245,7 +260,10 @@ export default function App() {
   // Sequence: needle lifts (0→1→2) → records swap → needle lowers (2→1→0)
   useEffect(() => {
     if (prevTrackRef.current === track.title) return;
+    const wasInitialOrPlaceholder = prevTrackRef.current === null || prevTrackRef.current === 'No track';
     prevTrackRef.current = track.title;
+    if (track.title === 'No track') return;
+    if (wasInitialOrPlaceholder) return;
     if (needleLifted) return;
 
     setNeedleLifted(true);
@@ -537,6 +555,12 @@ export default function App() {
               >
                 apple
               </button>
+              <button
+                className={`settings-theme-btn ${musicService === 'local' ? 'active' : ''}`}
+                onClick={() => { setMusicService('local'); setSource('local'); }}
+              >
+                local
+              </button>
             </div>
 
             {musicService === 'spotify' && (
@@ -563,11 +587,6 @@ export default function App() {
                     )}
                   </div>
                   <div className="settings-theme-row">
-                    {source === 'streaming' && (
-                      <button className="settings-theme-btn" onClick={() => setSource('local')}>
-                        local
-                      </button>
-                    )}
                     <button className="settings-theme-btn" onClick={() => {
                       spotifyLogout();
                       setSpotifyConnected(false);
@@ -609,11 +628,6 @@ export default function App() {
                     ))}
                   </div>
                   <div className="settings-theme-row">
-                    {source === 'streaming' && (
-                      <button className="settings-theme-btn" onClick={() => setSource('local')}>
-                        local
-                      </button>
-                    )}
                     <button className="settings-theme-btn" onClick={() => {
                       appleLogout();
                       setAppleConnected(false);

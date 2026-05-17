@@ -4,6 +4,7 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { Readable } = require('node:stream');
 
 const fs = require('node:fs');
 const jwt = require('jsonwebtoken');
@@ -13,10 +14,16 @@ const execFileAsync = promisify(execFile);
 // Custom protocol used by the renderer's <audio> — main fetches the actual
 // stream so we can attach headers and forward Range requests for seeking.
 // Must be registered as privileged before app.whenReady fires.
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'cupid-audio',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true },
-}]);
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'cupid-audio',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true },
+  },
+  {
+    scheme: 'cupid-local',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true },
+  },
+]);
 
 // ── Apple Music developer token ──────────────────────────
 let appleMusicToken = null;
@@ -227,6 +234,51 @@ async function getStreamUrl(title, artist) {
 
 const isDev = process.env.NODE_ENV === 'development';
 
+// ── Local audio library (user-editable playlist + mp3s) ───
+// In dev: read/write directly from the project's audio/ folder so edits
+// during development are picked up without a seeding dance.
+// In prod: bundled audio/ ships via extraResources to process.resourcesPath;
+// on first launch we copy it to userData so users can add/edit freely.
+function bundledAudioDir() {
+  return path.join(process.resourcesPath, 'audio');
+}
+
+function userAudioDir() {
+  return isDev
+    ? path.join(__dirname, '..', 'audio')
+    : path.join(app.getPath('userData'), 'audio');
+}
+
+function userPlaylistFile() {
+  return path.join(userAudioDir(), 'playlist.json');
+}
+
+async function seedUserAudioDirIfMissing() {
+  if (isDev) return;
+  const dest = userAudioDir();
+  try {
+    await fs.promises.access(dest);
+    return;
+  } catch {
+    // doesn't exist yet — seed it
+  }
+
+  const src = bundledAudioDir();
+  await fs.promises.mkdir(dest, { recursive: true });
+
+  try {
+    const entries = await fs.promises.readdir(src);
+    await Promise.all(entries.map(async (name) => {
+      const from = path.join(src, name);
+      const to = path.join(dest, name);
+      const stat = await fs.promises.stat(from);
+      if (stat.isFile()) await fs.promises.copyFile(from, to);
+    }));
+  } catch (err) {
+    console.warn('[seed audio]', err.message);
+  }
+}
+
 // Scale factor for pixel art
 // Actual drawing area within 526x526 canvas: 306x497
 // (23px top at bow, 110px left, 110px right, 6px bottom at heart)
@@ -426,10 +478,95 @@ ipcMain.handle('get-stream-url', async (_e, title, artist) => {
   }
 });
 
+ipcMain.handle('get-local-playlist', async () => {
+  try {
+    const raw = await fs.promises.readFile(userPlaylistFile(), 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    if (err.code !== 'ENOENT') console.warn('[playlist.json]', err.message);
+    return [];
+  }
+});
+
+ipcMain.handle('get-local-audio-path', (_e, filename) => {
+  if (typeof filename !== 'string' || !filename) return null;
+  // Reject path traversal and absolute paths — filename must be a basename
+  if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+    return null;
+  }
+  // Use a custom protocol so the dev renderer (served over http://) can play it —
+  // <audio> won't load file:// URLs cross-origin.
+  return `cupid-local://audio/${encodeURIComponent(filename)}`;
+});
+
+ipcMain.handle('open-music-folder', async () => {
+  const dir = userAudioDir();
+  await fs.promises.mkdir(dir, { recursive: true });
+  await shell.openPath(dir);
+  return dir;
+});
+
 app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) {
     app.dock.setIcon(path.join(__dirname, '..', 'assets', 'pink', 'favicon.png'));
   }
+
+  seedUserAudioDirIfMissing().catch((err) => console.warn('[seed]', err.message));
+
+  protocol.handle('cupid-local', async (request) => {
+    try {
+      const u = new URL(request.url);
+      const filename = decodeURIComponent(u.pathname.replace(/^\//, ''));
+      if (!filename || filename.includes('..') || filename.includes('\\') || filename.includes('/')) {
+        return new Response('forbidden', { status: 403 });
+      }
+      const filePath = path.join(userAudioDir(), filename);
+      const stat = await fs.promises.stat(filePath);
+      const total = stat.size;
+      const range = request.headers.get('Range');
+
+      const ext = path.extname(filename).toLowerCase();
+      const mimeByExt = {
+        '.mp3': 'audio/mpeg',
+        '.m4a': 'audio/mp4',
+        '.aac': 'audio/aac',
+        '.flac': 'audio/flac',
+        '.wav': 'audio/wav',
+        '.ogg': 'audio/ogg',
+        '.opus': 'audio/ogg',
+      };
+      const contentType = mimeByExt[ext] || 'application/octet-stream';
+
+      if (range) {
+        const match = /bytes=(\d+)-(\d*)/.exec(range);
+        const start = match ? parseInt(match[1], 10) : 0;
+        const end = match && match[2] ? parseInt(match[2], 10) : total - 1;
+        const nodeStream = fs.createReadStream(filePath, { start, end });
+        return new Response(Readable.toWeb(nodeStream), {
+          status: 206,
+          headers: {
+            'Content-Range': `bytes ${start}-${end}/${total}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': String(end - start + 1),
+            'Content-Type': contentType,
+          },
+        });
+      }
+
+      return new Response(Readable.toWeb(fs.createReadStream(filePath)), {
+        status: 200,
+        headers: {
+          'Accept-Ranges': 'bytes',
+          'Content-Length': String(total),
+          'Content-Type': contentType,
+        },
+      });
+    } catch (err) {
+      console.error('[cupid-local]', err.message);
+      return new Response('not found', { status: 404 });
+    }
+  });
 
   protocol.handle('cupid-audio', async (request) => {
     try {
