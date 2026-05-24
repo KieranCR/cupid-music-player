@@ -59,6 +59,13 @@ function formatTime(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function formatCountdown(ms) {
+  const seconds = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 const SLEEP_TIMER_OPTIONS = [
   { value: 'off', label: 'off' },
   { value: '15', label: '15 minutes' },
@@ -222,6 +229,9 @@ export default function App() {
   }); // 'spotify' | 'apple' | 'youtube' | 'local'
   const [playMode, setPlayMode] = useState('normal'); // 'normal' | 'shuffle' | 'repeat'
   const [sleepTimer, setSleepTimer] = useState('off');
+  const [sleepEndsAt, setSleepEndsAt] = useState(null);
+  const [sleepNow, setSleepNow] = useState(Date.now());
+  const [showSleepCountdown, setShowSleepCountdown] = useState(true);
   const [volumeHovered, setVolumeHovered] = useState(false);
   const [volumeDragging, setVolumeDragging] = useState(false);
   const volumeBarRef = useRef(null);
@@ -269,7 +279,14 @@ export default function App() {
   useEffect(() => { pauseRef.current = pause; }, [pause]);
 
   useEffect(() => {
-    if (sleepTimer === 'off') return;
+    if (sleepTimer === 'off') {
+      setSleepEndsAt(null);
+      return;
+    }
+
+    const endsAt = Date.now() + Number(sleepTimer) * 60 * 1000;
+    setSleepEndsAt(endsAt);
+    setSleepNow(Date.now());
 
     const timeout = setTimeout(() => {
       pauseRef.current();
@@ -278,6 +295,16 @@ export default function App() {
 
     return () => clearTimeout(timeout);
   }, [sleepTimer]);
+
+  useEffect(() => {
+    if (!sleepEndsAt || !showSleepCountdown) return;
+
+    setSleepNow(Date.now());
+    const interval = setInterval(() => setSleepNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [sleepEndsAt, showSleepCountdown]);
+
+  const sleepRemaining = sleepEndsAt ? Math.max(0, sleepEndsAt - sleepNow) : 0;
 
   // ── Fetch Spotify playlists ────────────────────────────
   const loadSpotifyPlaylists = useCallback((silent = false) => {
@@ -758,6 +785,19 @@ export default function App() {
               options={SLEEP_TIMER_OPTIONS}
               onChange={setSleepTimer}
             />
+            {sleepTimer !== 'off' && (
+              <>
+                <button
+                  className={`settings-theme-btn ${showSleepCountdown ? 'active' : ''}`}
+                  onClick={() => setShowSleepCountdown((v) => !v)}
+                >
+                  countdown {showSleepCountdown ? 'on' : 'off'}
+                </button>
+                {showSleepCountdown && (
+                  <div className="settings-label">sleep in {formatCountdown(sleepRemaining)}</div>
+                )}
+              </>
+            )}
 
             {musicService === 'local' && (
               <button
