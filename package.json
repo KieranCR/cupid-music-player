@@ -12,7 +12,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "electron": "electron .",
-    "package": "vite build && electron-builder"
+    "package": "vite build && electron-builder",
+    "test": "vitest run"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
@@ -30,6 +31,7 @@
     "electron-builder": "^26.8.1",
     "nodemon": "^3.1.14",
     "vite": "^6.0.7",
+    "vitest": "^3.2.4",
     "wait-on": "^8.0.1"
   },
   "build": {
