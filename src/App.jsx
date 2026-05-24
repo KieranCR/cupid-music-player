@@ -82,15 +82,17 @@ function SettingsDropdown({ value, options, onChange }) {
     const onKey = (e) => {
       if (e.key === 'Escape') setOpen(false);
     };
+    const onScroll = () => setOpen(false);
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('keydown', onKey);
     window.addEventListener('resize', updateRect);
     // Close on scroll anywhere — positions become stale fast
-    window.addEventListener('scroll', () => setOpen(false), true);
+    window.addEventListener('scroll', onScroll, true);
     return () => {
       document.removeEventListener('mousedown', onMouseDown);
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('resize', updateRect);
+      window.removeEventListener('scroll', onScroll, true);
     };
   }, [open]);
 
