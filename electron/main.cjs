@@ -294,6 +294,37 @@ async function fetchYouTubePlaylistViaYtDlp(url) {
 }
 
 const isDev = process.env.NODE_ENV === 'development';
+const DEV_SERVER_ORIGIN = 'http://127.0.0.1:5173';
+
+function appFileUrl() {
+  return pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html'));
+}
+
+function isAppUrl(url) {
+  const parsed = new URL(url);
+  if (isDev) return parsed.origin === DEV_SERVER_ORIGIN;
+
+  const fileUrl = appFileUrl();
+  return parsed.protocol === 'file:' && parsed.pathname === fileUrl.pathname;
+}
+
+function isSpotifyAuthorizeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname === 'accounts.spotify.com' && parsed.pathname === '/authorize';
+  } catch {
+    return false;
+  }
+}
+
+function isSpotifyCallbackUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === DEV_SERVER_ORIGIN && parsed.pathname === '/callback' && parsed.searchParams.has('code');
+  } catch {
+    return false;
+  }
+}
 
 // ── Local audio library (user-editable playlist + mp3s) ───
 // In dev: read/write directly from the project's audio/ folder so edits
@@ -429,7 +460,7 @@ function createWindow() {
 
   const onOpenExternal = (_e, url) => {
     if (typeof url === 'string' && url.startsWith('https://')) {
-      if (url.includes('accounts.spotify.com/authorize')) {
+      if (isSpotifyAuthorizeUrl(url)) {
         const authWin = new BrowserWindow({
           width: 500,
           height: 700,
@@ -440,14 +471,14 @@ function createWindow() {
         });
         authWin.loadURL(url);
         const handleAuthRedirect = (event, callbackUrl) => {
-          if (callbackUrl.startsWith('http://127.0.0.1:5173/callback')) {
+          if (isSpotifyCallbackUrl(callbackUrl)) {
             event.preventDefault();
             const url = new URL(callbackUrl);
             let target;
             if (isDev) {
-              target = `http://127.0.0.1:5173/${url.search}`;
+              target = `${DEV_SERVER_ORIGIN}/${url.search}`;
             } else {
-              const fileUrl = pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html'));
+              const fileUrl = appFileUrl();
               fileUrl.search = url.search;
               target = fileUrl.href;
             }
@@ -488,7 +519,13 @@ function createWindow() {
     ipcMain.removeListener('set-theme', onSetTheme);
   });
 
-  // Handle Spotify OAuth callback in production.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (typeof url === 'string' && url.startsWith('https://')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
   win.webContents.on('will-navigate', (event, url) => {
     try {
       const parsed = new URL(url);
@@ -500,13 +537,17 @@ function createWindow() {
       if (parsed.pathname === '/callback' && parsed.searchParams.has('code')) {
         if (!isDev) {
           event.preventDefault();
-          const fileUrl = pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html'));
+          const fileUrl = appFileUrl();
           fileUrl.search = parsed.search;
           win.loadURL(fileUrl.href);
         }
+        return;
+      }
+      if (!isAppUrl(url)) {
+        event.preventDefault();
       }
     } catch {
-      // ignore invalid URLs
+      event.preventDefault();
     }
   });
 
@@ -520,7 +561,7 @@ function createWindow() {
   });
 
   if (isDev) {
-    win.loadURL('http://127.0.0.1:5173');
+    win.loadURL(DEV_SERVER_ORIGIN);
   } else {
     win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
