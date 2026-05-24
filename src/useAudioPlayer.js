@@ -8,12 +8,13 @@ import { takeShuffleIndex } from './shuffleBag.js';
  * loaded in App via window.cupid.getLocalPlaylist(). Files are resolved
  * to file:// URLs through getAudioPath so spaces/Unicode work correctly.
  */
-export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath) {
+export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath, initialState = {}) {
   const audioRef = useRef(new Audio());
   const playModeRef = useRef(playMode);
   playModeRef.current = playMode;
   const shuffleBagRef = useRef([]);
-  const [trackIndex, setTrackIndex] = useState(0);
+  const restoreTimeRef = useRef(initialState.currentTime || 0);
+  const [trackIndex, setTrackIndex] = useState(initialState.trackIndex || 0);
 
   // Reset index when the playlist array changes (mirrors useSpotifyPlayer)
   const prevTracksRef = useRef(tracks);
@@ -45,6 +46,7 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
     if (!t || !t.file) return;
 
     let cancelled = false;
+    let restoreMetadata = null;
     (async () => {
       let src;
       if (getAudioPath) {
@@ -59,12 +61,30 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
       setProgress(0);
       setCurrentTime(0);
       setDuration(0);
+      const restoreTime = restoreTimeRef.current;
+      restoreTimeRef.current = 0;
+      if (restoreTime > 0) {
+        const restore = () => {
+          if (cancelled) return;
+          if (audio.duration) {
+            audio.currentTime = Math.min(restoreTime, Math.max(0, audio.duration - 1));
+          }
+        };
+        if (audio.readyState >= 1) restore();
+        else {
+          restoreMetadata = restore;
+          audio.addEventListener('loadedmetadata', restoreMetadata, { once: true });
+        }
+      }
       if (isPlayingRef.current) {
         audio.play().catch(() => {});
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (restoreMetadata) audio.removeEventListener('loadedmetadata', restoreMetadata);
+    };
   }, [trackIndex, tracks]);
 
   // Time update listener

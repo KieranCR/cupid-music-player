@@ -18,6 +18,15 @@
   --color-panel-text: #C8D3F6;
 }
 
+.player.night-mode .layer,
+.player.night-mode .record-player,
+.player.night-mode .album-art,
+.player.night-mode .window-title,
+.player.night-mode .now-playing,
+.player.night-mode .time-display {
+  filter: brightness(0.72) saturate(0.65) sepia(0.12) hue-rotate(175deg);
+}
+
 
 .layer {
   position: absolute;

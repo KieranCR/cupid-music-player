@@ -69,6 +69,19 @@ const SLEEP_TIMER_OPTIONS = [
   { value: '60', label: '60 minutes' },
 ];
 
+const RESUME_KEY = 'cupid-player-resume';
+const NIGHT_MODE_KEY = 'cupid-player-night-mode';
+
+function readResumeState() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RESUME_KEY) || 'null');
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function SettingsDropdown({ value, options, onChange }) {
   const [open, setOpen] = useState(false);
   const [menuRect, setMenuRect] = useState(null);
@@ -201,13 +214,20 @@ function MarqueeText({ className, text }) {
 
 export default function App() {
   // ── Source state ─────────────────────────────────────────
-  const [source, setSource] = useState('local'); // 'local' | 'streaming'
+  const [resumeState] = useState(readResumeState);
+  const [source, setSource] = useState(() => (
+    resumeState?.source === 'streaming' && Array.isArray(resumeState.streamTracks) && resumeState.streamTracks.length > 0
+      ? 'streaming'
+      : 'local'
+  )); // 'local' | 'streaming'
   const [spotifyConnected, setSpotifyConnected] = useState(isSpotifyLoggedIn());
   const [appleConnected, setAppleConnected] = useState(isAppleLoggedIn());
   const [youtubeConnected, setYoutubeConnected] = useState(isYouTubeLoggedIn());
   const [youtubeLoggingIn, setYoutubeLoggingIn] = useState(false);
   const [youtubeUrlInput, setYoutubeUrlInput] = useState('');
-  const [streamTracks, setStreamTracks] = useState([]);
+  const [streamTracks, setStreamTracks] = useState(() => (
+    Array.isArray(resumeState?.streamTracks) ? resumeState.streamTracks : []
+  ));
   const [spotifyPlaylists, setSpotifyPlaylists] = useState([]);
   const [applePlaylists, setApplePlaylists] = useState([]);
   const [youtubePlaylists, setYoutubePlaylists] = useState([]);
@@ -216,6 +236,9 @@ export default function App() {
   const [settingsError, setSettingsError] = useState(null);
   const [musicService, setMusicService] = useState(() => {
     try {
+      if (resumeState?.musicService === 'spotify' || resumeState?.musicService === 'apple' || resumeState?.musicService === 'youtube' || resumeState?.musicService === 'local') {
+        return resumeState.musicService;
+      }
       const stored = localStorage.getItem('cupid-player-music-service');
       if (stored === 'spotify' || stored === 'apple' || stored === 'youtube' || stored === 'local') return stored;
     } catch {
@@ -228,6 +251,13 @@ export default function App() {
   const [sleepEndsAt, setSleepEndsAt] = useState(null);
   const [sleepNow, setSleepNow] = useState(Date.now());
   const [showSleepCountdown, setShowSleepCountdown] = useState(true);
+  const [nightMode, setNightMode] = useState(() => {
+    try {
+      return localStorage.getItem(NIGHT_MODE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
   const [volumeHovered, setVolumeHovered] = useState(false);
   const [volumeDragging, setVolumeDragging] = useState(false);
   const volumeBarRef = useRef(null);
@@ -246,8 +276,14 @@ export default function App() {
 
   useEffect(() => { loadLocalPlaylist(); }, [loadLocalPlaylist]);
 
-  const local = useAudioPlayer(localTracks, playMode, window.cupid?.getLocalAudioPath);
-  const streaming = useSpotifyPlayer(streamTracks, playMode);
+  const local = useAudioPlayer(localTracks, playMode, window.cupid?.getLocalAudioPath, {
+    trackIndex: resumeState?.source === 'local' ? resumeState.trackIndex : 0,
+    currentTime: resumeState?.source === 'local' ? resumeState.currentTime : 0,
+  });
+  const streaming = useSpotifyPlayer(streamTracks, playMode, {
+    trackIndex: resumeState?.source === 'streaming' ? resumeState.trackIndex : 0,
+    currentTime: resumeState?.source === 'streaming' ? resumeState.currentTime : 0,
+  });
   const player = source === 'streaming' ? streaming : local;
 
   const {
@@ -266,6 +302,7 @@ export default function App() {
     muted,
     toggleMute,
     loading = false,
+    trackIndex,
   } = player;
 
   const cyclePlayMode = useCallback(() => {
@@ -302,6 +339,32 @@ export default function App() {
   }, [sleepEndsAt, showSleepCountdown]);
 
   const sleepRemaining = sleepEndsAt ? Math.max(0, sleepEndsAt - sleepNow) : 0;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(NIGHT_MODE_KEY, nightMode ? '1' : '0');
+    } catch {
+      // ignore
+    }
+  }, [nightMode]);
+
+  useEffect(() => {
+    if (source === 'local' && localTracks.length === 0) return;
+    if (source === 'streaming' && streamTracks.length === 0) return;
+
+    try {
+      localStorage.setItem(RESUME_KEY, JSON.stringify({
+        source,
+        musicService,
+        trackIndex,
+        currentTime,
+        streamTracks: source === 'streaming' ? streamTracks : [],
+        savedAt: Date.now(),
+      }));
+    } catch {
+      // ignore
+    }
+  }, [source, musicService, trackIndex, currentTime, streamTracks, localTracks.length]);
 
   // ── Fetch Spotify playlists ────────────────────────────
   const loadSpotifyPlaylists = useCallback((silent = false) => {
@@ -516,7 +579,7 @@ export default function App() {
   const resizeBR = useResize('bottom-right');
 
   return (
-    <div className={`player ${theme === 'blue' ? 'theme-blue' : ''}`}>
+    <div className={`player ${theme === 'blue' ? 'theme-blue' : ''} ${nightMode ? 'night-mode' : ''}`}>
       {/* Base frame */}
       <img src={assets.frame} className="layer" alt="" draggable={false} />
 
@@ -760,6 +823,12 @@ export default function App() {
                 blue
               </button>
             </div>
+            <button
+              className={`settings-theme-btn ${nightMode ? 'active' : ''}`}
+              onClick={() => setNightMode((v) => !v)}
+            >
+              night {nightMode ? 'on' : 'off'}
+            </button>
             <div className="settings-label">music</div>
             <SettingsDropdown
               value={musicService}

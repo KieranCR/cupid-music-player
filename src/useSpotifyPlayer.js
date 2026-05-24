@@ -10,7 +10,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { takeShuffleIndex } from './shuffleBag.js';
 
-export default function useSpotifyPlayer(tracks, playMode = 'normal') {
+export default function useSpotifyPlayer(tracks, playMode = 'normal', initialState = {}) {
   const audioRef = useRef(new Audio());
   const playModeRef = useRef(playMode);
   playModeRef.current = playMode;
@@ -18,7 +18,8 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
   const nextIdxRef = useRef(null);
   const nextPickRef = useRef(null);
   const shuffleBagRef = useRef([]);
-  const [trackIndex, setTrackIndex] = useState(0);
+  const restoreTimeRef = useRef(initialState.currentTime || 0);
+  const [trackIndex, setTrackIndex] = useState(initialState.trackIndex || 0);
 
   // Reset to track 0 on playlist change, otherwise the stale index can be
   // out of bounds for the new playlist
@@ -60,6 +61,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
     if (!t) return;
 
     let cancelled = false;
+    let restoreMetadata = null;
     setLoading(true);
 
     async function loadStream() {
@@ -70,6 +72,21 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
         if (cancelled) return;
         // setting src triggers loading; an explicit audio.load() would reset it
         audio.src = url;
+        const restoreTime = restoreTimeRef.current;
+        restoreTimeRef.current = 0;
+        if (restoreTime > 0) {
+          const restore = () => {
+            if (cancelled) return;
+            if (audio.duration) {
+              audio.currentTime = Math.min(restoreTime, Math.max(0, audio.duration - 1));
+            }
+          };
+          if (audio.readyState >= 1) restore();
+          else {
+            restoreMetadata = restore;
+            audio.addEventListener('loadedmetadata', restoreMetadata, { once: true });
+          }
+        }
         if (wantsPlayRef.current) {
           audio.play().catch(() => {});
         }
@@ -87,7 +104,10 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
 
     loadStream();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (restoreMetadata) audio.removeEventListener('loadedmetadata', restoreMetadata);
+    };
   }, [trackIndex, tracks]);
 
   // ── Precompute next index + prefetch surrounding tracks ───
