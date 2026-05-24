@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { takeShuffleIndex } from './shuffleBag.js';
 
 /**
  * Local audio player hook (HTML5 Audio).
@@ -11,12 +12,14 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
   const audioRef = useRef(new Audio());
   const playModeRef = useRef(playMode);
   playModeRef.current = playMode;
+  const shuffleBagRef = useRef([]);
   const [trackIndex, setTrackIndex] = useState(0);
 
   // Reset index when the playlist array changes (mirrors useSpotifyPlayer)
   const prevTracksRef = useRef(tracks);
   if (prevTracksRef.current !== tracks) {
     prevTracksRef.current = tracks;
+    shuffleBagRef.current = [];
     if (trackIndex >= tracks.length) setTrackIndex(0);
   }
 
@@ -86,9 +89,9 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
       setTrackIndex((prev) => {
         if (tracks.length === 0) return 0;
         if (playModeRef.current === 'shuffle') {
-          let next;
-          do { next = Math.floor(Math.random() * tracks.length); } while (next === prev && tracks.length > 1);
-          return next;
+          const next = takeShuffleIndex(shuffleBagRef.current, tracks.length, prev);
+          shuffleBagRef.current = next.bag;
+          return next.index;
         }
         return (prev + 1) % tracks.length;
       });
@@ -124,9 +127,9 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
     setTrackIndex((prev) => {
       if (tracks.length === 0) return 0;
       if (playModeRef.current === 'shuffle' && tracks.length > 1) {
-        let n;
-        do { n = Math.floor(Math.random() * tracks.length); } while (n === prev);
-        return n;
+        const next = takeShuffleIndex(shuffleBagRef.current, tracks.length, prev);
+        shuffleBagRef.current = next.bag;
+        return next.index;
       }
       return (prev + 1) % tracks.length;
     });

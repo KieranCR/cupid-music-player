@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { takeShuffleIndex } from './shuffleBag.js';
 
 export default function useSpotifyPlayer(tracks, playMode = 'normal') {
   const audioRef = useRef(new Audio());
@@ -15,6 +16,8 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
   playModeRef.current = playMode;
   // Shared between prefetch, next(), and onEnded so we play what we warmed
   const nextIdxRef = useRef(null);
+  const nextPickRef = useRef(null);
+  const shuffleBagRef = useRef([]);
   const [trackIndex, setTrackIndex] = useState(0);
 
   // Reset to track 0 on playlist change, otherwise the stale index can be
@@ -23,6 +26,8 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
   if (prevTracksRef.current !== tracks) {
     prevTracksRef.current = tracks;
     nextIdxRef.current = null;
+    nextPickRef.current = null;
+    shuffleBagRef.current = [];
     setTrackIndex(0);
   }
   const [isPlaying, setIsPlaying] = useState(false);
@@ -87,6 +92,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
   useEffect(() => {
     if (tracks.length === 0) {
       nextIdxRef.current = null;
+      nextPickRef.current = null;
       return;
     }
 
@@ -105,10 +111,11 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
 
     let nextIdx;
     if (playMode === 'shuffle' && tracks.length > 1) {
-      do {
-        nextIdx = Math.floor(Math.random() * tracks.length);
-      } while (nextIdx === trackIndex);
+      const pick = takeShuffleIndex(shuffleBagRef.current, tracks.length, trackIndex);
+      nextPickRef.current = pick;
+      nextIdx = pick.index;
     } else {
+      nextPickRef.current = null;
       nextIdx = (trackIndex + 1) % tracks.length;
     }
     nextIdxRef.current = nextIdx;
@@ -143,12 +150,18 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
       }
       setTrackIndex((prev) => {
         if (nextIdxRef.current !== null && nextIdxRef.current !== prev) {
-          return nextIdxRef.current;
+          const next = nextIdxRef.current;
+          if (nextPickRef.current?.index === next) {
+            shuffleBagRef.current = nextPickRef.current.bag;
+          }
+          nextIdxRef.current = null;
+          nextPickRef.current = null;
+          return next;
         }
         if (playModeRef.current === 'shuffle' && tracks.length > 1) {
-          let next;
-          do { next = Math.floor(Math.random() * tracks.length); } while (next === prev);
-          return next;
+          const next = takeShuffleIndex(shuffleBagRef.current, tracks.length, prev);
+          shuffleBagRef.current = next.bag;
+          return next.index;
         }
         return (prev + 1) % tracks.length;
       });
@@ -185,12 +198,18 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
     setTrackIndex((prev) => {
       // Prefer the precomputed next (matches what prefetch warmed)
       if (nextIdxRef.current !== null && nextIdxRef.current !== prev) {
-        return nextIdxRef.current;
+        const next = nextIdxRef.current;
+        if (nextPickRef.current?.index === next) {
+          shuffleBagRef.current = nextPickRef.current.bag;
+        }
+        nextIdxRef.current = null;
+        nextPickRef.current = null;
+        return next;
       }
       if (playModeRef.current === 'shuffle' && tracks.length > 1) {
-        let n;
-        do { n = Math.floor(Math.random() * tracks.length); } while (n === prev);
-        return n;
+        const next = takeShuffleIndex(shuffleBagRef.current, tracks.length, prev);
+        shuffleBagRef.current = next.bag;
+        return next.index;
       }
       return (prev + 1) % tracks.length;
     });
