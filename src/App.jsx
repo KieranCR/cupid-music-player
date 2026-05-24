@@ -59,6 +59,13 @@ function formatTime(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+const SLEEP_TIMER_OPTIONS = [
+  { value: 'off', label: 'off' },
+  { value: '15', label: '15 minutes' },
+  { value: '30', label: '30 minutes' },
+  { value: '60', label: '60 minutes' },
+];
+
 function SettingsDropdown({ value, options, onChange }) {
   const [open, setOpen] = useState(false);
   const [menuRect, setMenuRect] = useState(null);
@@ -214,6 +221,7 @@ export default function App() {
     return 'local';
   }); // 'spotify' | 'apple' | 'youtube' | 'local'
   const [playMode, setPlayMode] = useState('normal'); // 'normal' | 'shuffle' | 'repeat'
+  const [sleepTimer, setSleepTimer] = useState('off');
   const [volumeHovered, setVolumeHovered] = useState(false);
   const [volumeDragging, setVolumeDragging] = useState(false);
   const volumeBarRef = useRef(null);
@@ -243,6 +251,7 @@ export default function App() {
     duration,
     currentTime,
     togglePlay,
+    pause,
     next,
     prev,
     seek,
@@ -255,6 +264,20 @@ export default function App() {
   const cyclePlayMode = useCallback(() => {
     setPlayMode((m) => m === 'normal' ? 'shuffle' : m === 'shuffle' ? 'repeat' : 'normal');
   }, []);
+
+  const pauseRef = useRef(pause);
+  useEffect(() => { pauseRef.current = pause; }, [pause]);
+
+  useEffect(() => {
+    if (sleepTimer === 'off') return;
+
+    const timeout = setTimeout(() => {
+      pauseRef.current();
+      setSleepTimer('off');
+    }, Number(sleepTimer) * 60 * 1000);
+
+    return () => clearTimeout(timeout);
+  }, [sleepTimer]);
 
   // ── Fetch Spotify playlists ────────────────────────────
   const loadSpotifyPlaylists = useCallback((silent = false) => {
@@ -727,6 +750,13 @@ export default function App() {
                 try { localStorage.setItem('cupid-player-music-service', next); } catch { /* ignore */ }
                 if (next === 'local') setSource('local');
               }}
+            />
+
+            <div className="settings-label">sleep</div>
+            <SettingsDropdown
+              value={sleepTimer}
+              options={SLEEP_TIMER_OPTIONS}
+              onChange={setSleepTimer}
             />
 
             {musicService === 'local' && (

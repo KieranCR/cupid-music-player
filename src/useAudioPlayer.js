@@ -172,6 +172,7 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
     duration,
     currentTime,
     togglePlay,
+    pause,
     next,
     prev,
     seek,

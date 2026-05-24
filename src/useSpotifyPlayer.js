@@ -167,15 +167,19 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
 
   // ── Playback controls ────────────────────────────────────
 
+  const pause = useCallback(() => {
+    audio.pause();
+    setIsPlaying(false);
+  }, []);
+
   const togglePlay = useCallback(() => {
     if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
+      pause();
     } else {
       audio.play().catch(() => {});
       setIsPlaying(true);
     }
-  }, [isPlaying]);
+  }, [isPlaying, pause]);
 
   const next = useCallback(() => {
     setTrackIndex((prev) => {
@@ -231,6 +235,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
     duration,
     currentTime,
     togglePlay,
+    pause,
     next,
     prev,
     seek,
