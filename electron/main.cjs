@@ -69,6 +69,7 @@ const streamCache = new Map();
 const pendingRequests = new Map();
 const videoIdCache = new Map();
 const CACHE_TTL = 25 * 60 * 1000;
+const SEARCH_RESULT_LIMIT = 5;
 
 let videoIdCacheLoaded = false;
 let videoIdCacheFile = null;
@@ -157,15 +158,30 @@ async function searchYouTubeMusic(title, artist) {
   const yt = await getInnertube();
   const search = await yt.music.search(`${title} ${artist}`, { type: 'song' });
 
-  let top = search.songs?.contents?.find((c) => c?.id);
-  if (!top) {
+  const ids = [];
+  const add = (item) => {
+    if (item?.id && YT_ID_RE.test(item.id) && !ids.includes(item.id)) {
+      ids.push(item.id);
+    }
+  };
+
+  for (const item of search.songs?.contents || []) {
+    add(item);
+    if (ids.length >= SEARCH_RESULT_LIMIT) break;
+  }
+
+  if (ids.length < SEARCH_RESULT_LIMIT) {
     for (const shelf of search.contents || []) {
-      const item = shelf?.contents?.find?.((c) => c?.id);
-      if (item) { top = item; break; }
+      for (const item of shelf?.contents || []) {
+        add(item);
+        if (ids.length >= SEARCH_RESULT_LIMIT) break;
+      }
+      if (ids.length >= SEARCH_RESULT_LIMIT) break;
     }
   }
-  if (!top?.id) throw new Error('No song result');
-  return top.id;
+
+  if (ids.length === 0) throw new Error('No song result');
+  return ids;
 }
 
 async function ytDlpExtract(target) {
@@ -220,6 +236,20 @@ async function resolveStreamUrl(videoId) {
   return promise;
 }
 
+async function firstPlayableVideo(ids) {
+  let lastError = null;
+  for (const id of ids) {
+    try {
+      await resolveStreamUrl(id);
+      return id;
+    } catch (err) {
+      lastError = err;
+      decipheredCache.delete(id);
+    }
+  }
+  throw lastError || new Error('No playable result');
+}
+
 async function getStreamUrl(title, artist) {
   const cacheKey = `${title}::${artist}`;
   const cached = streamCache.get(cacheKey);
@@ -233,9 +263,18 @@ async function getStreamUrl(title, artist) {
 
   const promise = (async () => {
     try {
+      if (videoId) {
+        try {
+          await resolveStreamUrl(videoId);
+        } catch {
+          videoIdCache.delete(cacheKey);
+          videoId = null;
+        }
+      }
+
       if (!videoId) {
         try {
-          videoId = await searchYouTubeMusic(title, artist);
+          videoId = await firstPlayableVideo(await searchYouTubeMusic(title, artist));
         } catch (err) {
           console.warn('[youtubei search] fallback to yt-dlp:', err.message);
           const result = await ytDlpSearch(title, artist);
@@ -246,9 +285,6 @@ async function getStreamUrl(title, artist) {
         videoIdCache.set(cacheKey, videoId);
         persistVideoIdCache();
       }
-
-      // Best-effort pre-warm so the renderer's protocol fetch hits the decipher cache
-      resolveStreamUrl(videoId).catch(() => {});
 
       const url = `cupid-audio://stream?id=${encodeURIComponent(videoId)}`;
       streamCache.set(cacheKey, { url, time: Date.now() });
@@ -263,10 +299,10 @@ async function getStreamUrl(title, artist) {
 }
 
 // Direct cupid-audio URL for a known YouTube video ID — skips the search step
-// used by Spotify/Apple. Best-effort pre-warms the decipher cache.
-function streamUrlForVideoId(videoId) {
+// used by Spotify/Apple.
+async function streamUrlForVideoId(videoId) {
   if (!YT_ID_RE.test(videoId)) throw new Error('Invalid YouTube video ID');
-  resolveStreamUrl(videoId).catch(() => {});
+  await resolveStreamUrl(videoId);
   return `cupid-audio://stream?id=${encodeURIComponent(videoId)}`;
 }
 
@@ -424,13 +460,28 @@ function createWindow() {
   };
   const onClose = () => win.close();
 
-  const onResize = (_e, { dx, dy, corner }) => {
-    if (win.isDestroyed()) return;
-    const bounds = win.getBounds();
+  let activeResize = null;
 
+  const onResizeStart = (_e, { corner }) => {
+    if (win.isDestroyed()) return;
+    const point = screen.getCursorScreenPoint();
+    activeResize = {
+      x: point.x,
+      y: point.y,
+      corner,
+      bounds: win.getBounds(),
+    };
+  };
+
+  const onResize = () => {
+    if (win.isDestroyed() || !activeResize) return;
+    const point = screen.getCursorScreenPoint();
+    const { bounds, corner } = activeResize;
     const isRight = corner.includes('right');
     const isBottom = corner.includes('bottom');
 
+    const dx = point.x - activeResize.x;
+    const dy = point.y - activeResize.y;
     const effectiveDx = isRight ? dx : -dx;
     const effectiveDy = isBottom ? dy : -dy;
 
@@ -456,6 +507,10 @@ function createWindow() {
     if (newBounds.width >= 200 && newBounds.height >= 200) {
       win.setBounds(newBounds);
     }
+  };
+
+  const onResizeEnd = () => {
+    activeResize = null;
   };
 
   const onOpenExternal = (_e, url) => {
@@ -505,7 +560,9 @@ function createWindow() {
   ipcMain.on('window-minimize', onMinimize);
   ipcMain.on('window-maximize', onMaximize);
   ipcMain.on('window-close', onClose);
+  ipcMain.on('window-resize-start', onResizeStart);
   ipcMain.on('window-resize', onResize);
+  ipcMain.on('window-resize-end', onResizeEnd);
   ipcMain.on('open-external', onOpenExternal);
   ipcMain.on('set-theme', onSetTheme);
 
@@ -514,7 +571,9 @@ function createWindow() {
     ipcMain.removeListener('window-minimize', onMinimize);
     ipcMain.removeListener('window-maximize', onMaximize);
     ipcMain.removeListener('window-close', onClose);
+    ipcMain.removeListener('window-resize-start', onResizeStart);
     ipcMain.removeListener('window-resize', onResize);
+    ipcMain.removeListener('window-resize-end', onResizeEnd);
     ipcMain.removeListener('open-external', onOpenExternal);
     ipcMain.removeListener('set-theme', onSetTheme);
   });
@@ -609,8 +668,8 @@ ipcMain.handle('open-music-folder', async () => {
   return dir;
 });
 
-ipcMain.handle('get-stream-url-by-id', (_e, videoId) => {
-  return streamUrlForVideoId(videoId);
+ipcMain.handle('get-stream-url-by-id', async (_e, videoId) => {
+  return await streamUrlForVideoId(videoId);
 });
 
 ipcMain.handle('youtube-fetch-playlist', async (_e, url) => {

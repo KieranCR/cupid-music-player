@@ -31,10 +31,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
     setTrackIndex(0);
   }
   const [isPlaying, setIsPlaying] = useState(false);
-  // Ref so the async load effect sees the latest value when it resolves,
-  // not the one captured when it started
-  const isPlayingRef = useRef(false);
-  isPlayingRef.current = isPlaying;
+  const wantsPlayRef = useRef(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -73,13 +70,18 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
         if (cancelled) return;
         // setting src triggers loading; an explicit audio.load() would reset it
         audio.src = url;
-        if (isPlayingRef.current) {
+        if (wantsPlayRef.current) {
           audio.play().catch(() => {});
         }
       } catch (err) {
         console.error('Failed to get stream:', err.message);
+        if (!cancelled) {
+          wantsPlayRef.current = false;
+          setIsPlaying(false);
+          setLoading(false);
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && !wantsPlayRef.current) setLoading(false);
       }
     }
 
@@ -142,9 +144,20 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
       setDuration(audio.duration);
     };
 
+    const onPlaying = () => {
+      setLoading(false);
+      setIsPlaying(true);
+    };
+
+    const onWaiting = () => {
+      if (wantsPlayRef.current) setLoading(true);
+    };
+
     const onEnded = () => {
+      setIsPlaying(false);
       if (playModeRef.current === 'repeat') {
         audio.currentTime = 0;
+        wantsPlayRef.current = true;
         audio.play().catch(() => {});
         return;
       }
@@ -169,11 +182,15 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
 
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('waiting', onWaiting);
     audio.addEventListener('ended', onEnded);
 
     return () => {
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('waiting', onWaiting);
       audio.removeEventListener('ended', onEnded);
     };
   }, [tracks.length]);
@@ -181,18 +198,21 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
   // ── Playback controls ────────────────────────────────────
 
   const pause = useCallback(() => {
+    wantsPlayRef.current = false;
     audio.pause();
+    setLoading(false);
     setIsPlaying(false);
   }, []);
 
   const togglePlay = useCallback(() => {
-    if (isPlaying) {
+    if (isPlaying || loading) {
       pause();
     } else {
+      wantsPlayRef.current = true;
+      if (!audio.src || audio.readyState < 3) setLoading(true);
       audio.play().catch(() => {});
-      setIsPlaying(true);
     }
-  }, [isPlaying, pause]);
+  }, [isPlaying, loading, pause]);
 
   const next = useCallback(() => {
     setTrackIndex((prev) => {
@@ -213,7 +233,9 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
       }
       return (prev + 1) % tracks.length;
     });
-    setIsPlaying(true);
+    wantsPlayRef.current = true;
+    setLoading(true);
+    setIsPlaying(false);
   }, [tracks.length]);
 
   const prev = useCallback(() => {
@@ -222,7 +244,9 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal') {
     } else {
       setTrackIndex((prev) => (prev - 1 + tracks.length) % tracks.length);
     }
-    setIsPlaying(true);
+    wantsPlayRef.current = true;
+    setLoading(true);
+    setIsPlaying(false);
   }, [tracks.length]);
 
   const seek = useCallback((fraction) => {

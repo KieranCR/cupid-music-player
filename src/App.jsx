@@ -29,20 +29,16 @@ import starSelected from '../assets/star_selected.png';
 function useResize(corner) {
   const onMouseDown = useCallback((e) => {
     e.preventDefault();
-    let lastX = e.screenX;
-    let lastY = e.screenY;
+    window.cupid?.resizeStart({ x: e.screenX, y: e.screenY, corner });
 
     const onMouseMove = (e) => {
-      const dx = e.screenX - lastX;
-      const dy = e.screenY - lastY;
-      lastX = e.screenX;
-      lastY = e.screenY;
-      window.cupid?.resize({ dx, dy, corner });
+      window.cupid?.resize({ x: e.screenX, y: e.screenY });
     };
 
     const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      window.cupid?.resizeEnd();
     };
 
     window.addEventListener('mousemove', onMouseMove);
@@ -269,6 +265,7 @@ export default function App() {
     setVolume,
     muted,
     toggleMute,
+    loading = false,
   } = player;
 
   const cyclePlayMode = useCallback(() => {
@@ -637,7 +634,7 @@ export default function App() {
       <div className="now-playing">
         <div className="track-info">
           <div className="now-playing-label">
-            now playing...
+            {loading ? 'loading...' : 'now playing...'}
           </div>
           <MarqueeText className="track-title" text={track.title} />
           <div className="track-artist">by {track.artist}</div>
@@ -646,8 +643,8 @@ export default function App() {
 
       {/* Time display */}
       <div className="time-display">
-        <span className="time-current">{formatTime(currentTime)}</span>
-        <span className="time-remaining">{formatTime(duration - currentTime)}</span>
+        <span className="time-current">{loading ? '...' : formatTime(currentTime)}</span>
+        <span className="time-remaining">{loading ? '...' : formatTime(duration - currentTime)}</span>
       </div>
 
       {/* Drag region for moving the window */}
