@@ -19,6 +19,18 @@ async function fetchWithRetry(url, options, retries = 3) {
   return fetch(url, options);
 }
 
+function trackFromEntry(entry) {
+  const t = entry.track || entry.item;
+  if (!t || !t.uri) return null;
+
+  return {
+    title: t.name,
+    artist: t.artists.map((a) => a.name).join(', '),
+    art: t.album?.images?.[0]?.url ?? null,
+    uri: t.uri,
+  };
+}
+
 /**
  * Parse a Spotify playlist URL or URI and return the playlist ID.
  *
@@ -66,8 +78,9 @@ export async function fetchPlaylistTracks(playlistId) {
   const token = await getAccessToken();
   if (!token) throw new Error('Not authenticated with Spotify');
 
+  const headers = { Authorization: `Bearer ${token}` };
   const res = await fetchWithRetry(`${API_BASE}/playlists/${playlistId}?market=from_token`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers,
   });
 
   if (!res.ok) {
@@ -77,22 +90,24 @@ export async function fetchPlaylistTracks(playlistId) {
 
   const data = await res.json();
   const tracks = [];
+  let page = data.tracks || (data.items ? data : null);
 
-  // The full playlist response nests tracks under `items` or `tracks`
-  const container = data.tracks || data.items;
-  const items = container?.items || [];
+  while (page) {
+    for (const entry of page.items || []) {
+      const track = trackFromEntry(entry);
+      if (track) tracks.push(track);
+    }
 
-  for (const entry of items) {
-    // Track data may be under `track` or `item` depending on API version
-    const t = entry.track || entry.item;
-    if (!t || !t.uri) continue;
+    if (!page.next) break;
 
-    tracks.push({
-      title: t.name,
-      artist: t.artists.map((a) => a.name).join(', '),
-      art: t.album?.images?.[0]?.url ?? null,
-      uri: t.uri,
+    const nextRes = await fetchWithRetry(page.next, {
+      headers,
     });
+    if (!nextRes.ok) {
+      const text = await nextRes.text();
+      throw new Error(`Spotify API error ${nextRes.status}: ${text}`);
+    }
+    page = await nextRes.json();
   }
 
   // Fill in missing album art via search (local files, etc.)
