@@ -166,6 +166,23 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
     }
   }, [tracks]);
 
+  const selectTrack = useCallback((index) => {
+    if (index < 0 || index >= tracks.length) return;
+    shuffleBagRef.current = [];
+    audio.pause();
+    setProgress(0);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsPlaying(true);
+    setTrackIndex((current) => {
+      if (current === index) {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      }
+      return index;
+    });
+  }, [tracks.length]);
+
   const seek = useCallback((fraction) => {
     if (audio.duration) {
       audio.currentTime = Math.min(fraction, 1) * audio.duration;
@@ -198,6 +215,7 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
     pause,
     next,
     prev,
+    selectTrack,
     seek,
     volume,
     setVolume,

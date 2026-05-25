@@ -196,6 +196,48 @@ function PlaylistList({ loading, playlists, loadingPlaylist, onSelect, emptyMess
   );
 }
 
+function TrackList({ tracks, activeIndex, playMode, onSelect }) {
+  const activeRef = useRef(null);
+  const nextIndex = playMode === 'normal' && tracks.length > 1
+    ? (activeIndex + 1) % tracks.length
+    : null;
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
+
+  if (tracks.length === 0) {
+    return <div className="settings-track-empty">no tracks loaded</div>;
+  }
+
+  return (
+    <div className="settings-track-list">
+      {tracks.map((track, index) => {
+        const trackState = index === activeIndex
+          ? 'playing'
+          : index === nextIndex
+            ? 'next'
+            : '';
+
+        return (
+          <button
+            key={`${track.id ?? track.uri ?? track.file ?? track.title}-${index}`}
+            ref={index === activeIndex ? activeRef : null}
+            className={`settings-track-item ${index === activeIndex ? 'active' : ''}`}
+            onClick={() => onSelect(index)}
+          >
+            <span className="settings-track-title">{track.title}</span>
+            <span className="settings-track-meta">
+              {track.artist && <small>{track.artist}</small>}
+              {trackState && <small>{trackState}</small>}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function MarqueeText({ className, text }) {
   const outerRef = useRef(null);
   const textRef = useRef(null);
@@ -307,6 +349,7 @@ export default function App() {
     pause,
     next,
     prev,
+    selectTrack,
     seek,
     volume,
     setVolume,
@@ -316,6 +359,7 @@ export default function App() {
     playbackStatus,
     trackIndex,
   } = player;
+  const queueTracks = source === 'streaming' ? streamTracks : localTracks;
 
   const cyclePlayMode = useCallback(() => {
     setPlayMode((m) => m === 'normal' ? 'shuffle' : m === 'shuffle' ? 'repeat' : 'normal');
@@ -497,14 +541,24 @@ export default function App() {
   const [starHovered, setStarHovered] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showTrackView, setShowTrackView] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [hoverProgress, setHoverProgress] = useState(null);
   const seekRef = useRef(null);
 
   const toggleSettings = useCallback(() => {
-    if (showSettings) setShowAbout(false);
+    if (showSettings) {
+      setShowAbout(false);
+    }
+    setShowTrackView(false);
     setShowSettings((v) => !v);
   }, [showSettings]);
+
+  const toggleTrackView = useCallback(() => {
+    setShowAbout(false);
+    setShowSettings(false);
+    setShowTrackView((v) => !v);
+  }, []);
 
   useEffect(() => {
     if (!dragging) return;
@@ -692,6 +746,7 @@ export default function App() {
 
       {/* Settings button layer */}
       <img src={assets.settings} className="layer layer-ui settings-layer" alt="" draggable={false} />
+      <img src={assets.tracks} className="track-view-layer" alt="" draggable={false} />
 
       {/* SVG clip-path for pixel-art album mask */}
       <svg width="0" height="0" style={{ position: 'absolute' }}>
@@ -817,6 +872,7 @@ export default function App() {
 
       {/* Settings button */}
       <div className="btn btn-settings" onClick={toggleSettings} />
+      <div className="btn btn-track-view" onClick={toggleTrackView} />
 
       {/* Debug overlays — toggle with showDebug state */}
       {showDebug && (
@@ -831,10 +887,29 @@ export default function App() {
       )}
 
       {/* Settings panel */}
-      {showSettings && (
+      {(showSettings || showTrackView) && (
         <div className="settings-panel">
-          <div className="settings-panel-inner">
-            {showAbout ? (
+          <div className={`settings-panel-inner ${showTrackView ? 'track-picker' : ''}`}>
+            {showTrackView ? (
+              <>
+                <button
+                  className="settings-theme-btn"
+                  onClick={() => setShowTrackView(false)}
+                >
+                  back
+                </button>
+                <div className="settings-track-heading">
+                  <span>tracks</span>
+                  <small>{queueTracks.length}</small>
+                </div>
+                <TrackList
+                  tracks={queueTracks}
+                  activeIndex={trackIndex}
+                  playMode={playMode}
+                  onSelect={selectTrack}
+                />
+              </>
+            ) : showAbout ? (
               <>
                 <button
                   className="settings-theme-btn"

@@ -16,6 +16,7 @@ import pinkWindowButton from '../assets/pink/window_button.png';
 import pinkFavicon from '../assets/pink/favicon.png';
 import pinkProgressBar from '../assets/pink/progress_bar.png';
 import pinkSettings from '../assets/pink/settings.png';
+import pinkTracks from '../assets/pink/tracks.png';
 import pinkVolumeButton from '../assets/pink/volume_button.png';
 import pinkMuteButton from '../assets/pink/mute_button.png';
 import pinkShuffleButton from '../assets/pink/shuffle_button.png';
@@ -70,6 +71,7 @@ import blueWindowButton from '../assets/blue/window_button.png';
 import blueFavicon from '../assets/blue/favicon.png';
 import blueProgressBar from '../assets/blue/progress_bar.png';
 import blueSettings from '../assets/blue/settings.png';
+import blueTracks from '../assets/blue/tracks.png';
 import blueVolumeButton from '../assets/blue/volume_button.png';
 import blueMuteButton from '../assets/blue/mute_button.png';
 import blueShuffleButton from '../assets/blue/shuffle_button.png';
@@ -94,6 +96,7 @@ const THEME_ASSETS = {
     favicon: pinkFavicon,
     progressBar: pinkProgressBar,
     settings: pinkSettings,
+    tracks: pinkTracks,
     volumeButton: pinkVolumeButton,
     muteButton: pinkMuteButton,
     shuffleButton: pinkShuffleButton,
@@ -120,6 +123,7 @@ const THEME_ASSETS = {
     favicon: blueFavicon,
     progressBar: blueProgressBar,
     settings: blueSettings,
+    tracks: blueTracks,
     volumeButton: blueVolumeButton,
     muteButton: blueMuteButton,
     shuffleButton: blueShuffleButton,

@@ -122,8 +122,25 @@
   transform-origin: calc(310 / 512 * 100%) calc(57 / 512 * 100%);
 }
 
+.track-view-layer {
+  position: absolute;
+  left: calc((292 - 110) / 306 * 100vw);
+  top: calc((52 - 23) / 306 * 100vw);
+  width: calc(13 / 306 * 100vw);
+  height: calc(13 / 306 * 100vw);
+  image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+  z-index: 150;
+}
+
 .btn-settings {
   left: calc((305 - 110) / 306 * 100vw);
+  top: calc((48 - 23) / 306 * 100vw);
+}
+
+.btn-track-view {
+  left: calc((288 - 110) / 306 * 100vw);
   top: calc((48 - 23) / 306 * 100vw);
 }
 
@@ -148,6 +165,11 @@
   display: flex;
   flex-direction: column;
   gap: calc(4 / 306 * 100vw);
+}
+
+.settings-panel-inner.track-picker {
+  width: calc(210 / 306 * 100vw);
+  max-height: calc(380 / 306 * 100vw);
 }
 
 .settings-label {
@@ -359,6 +381,102 @@
 .settings-playlist-item.disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.settings-track-list {
+  max-height: calc(300 / 306 * 100vw);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 / 306 * 100vw);
+  scrollbar-width: none;
+}
+
+.settings-track-list::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-track-empty {
+  font-family: 'Rainyhearts', monospace;
+  font-size: calc(11 / 306 * 100vw);
+  color: var(--color-panel-text);
+  opacity: 0.8;
+}
+
+.settings-track-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: calc(1 / 306 * 100vw) solid var(--color-secondary);
+  padding-bottom: calc(4 / 306 * 100vw);
+}
+
+.settings-track-heading span,
+.settings-track-heading small {
+  font-family: 'Rainyhearts', monospace;
+  color: var(--color-panel-text);
+  line-height: 1;
+}
+
+.settings-track-heading span {
+  font-size: calc(14 / 306 * 100vw);
+}
+
+.settings-track-heading small {
+  font-size: calc(10 / 306 * 100vw);
+  opacity: 0.75;
+}
+
+.settings-track-item {
+  width: 100%;
+  min-height: calc(36 / 306 * 100vw);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  font-family: 'Rainyhearts', monospace;
+  background: rgba(255, 255, 255, 0.05);
+  border: calc(1 / 306 * 100vw) solid transparent;
+  border-radius: calc(2 / 306 * 100vw);
+  color: var(--color-panel-text);
+  padding: calc(5 / 306 * 100vw) calc(7 / 306 * 100vw);
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(1 / 306 * 100vw);
+}
+
+.settings-track-item:hover,
+.settings-track-item.active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.settings-track-item.active {
+  border-color: var(--color-panel-text);
+}
+
+.settings-track-title,
+.settings-track-meta,
+.settings-track-meta small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.settings-track-title {
+  font-size: calc(13 / 306 * 100vw);
+}
+
+.settings-track-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(8 / 306 * 100vw);
+}
+
+.settings-track-meta small {
+  font-size: calc(10 / 306 * 100vw);
+  opacity: 0.75;
 }
 
 .settings-error {

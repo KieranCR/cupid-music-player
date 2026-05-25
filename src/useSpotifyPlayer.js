@@ -309,6 +309,29 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
     setIsPlaying(false);
   }, [tracks.length, advanceToNext]);
 
+  const selectTrack = useCallback((index) => {
+    if (index < 0 || index >= tracks.length) return;
+    failedLoadsRef.current = 0;
+    nextIdxRef.current = null;
+    nextPickRef.current = null;
+    shuffleBagRef.current = [];
+    setPlaybackStatus(null);
+    audio.pause();
+    wantsPlayRef.current = true;
+    setLoading(true);
+    setIsPlaying(false);
+    setProgress(0);
+    setCurrentTime(0);
+    setDuration(0);
+    setTrackIndex((current) => {
+      if (current === index && audio.src) {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      }
+      return index;
+    });
+  }, [tracks.length]);
+
   const seek = useCallback((fraction) => {
     if (audio.duration) {
       audio.currentTime = Math.min(fraction, 1) * audio.duration;
@@ -341,6 +364,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
     pause,
     next,
     prev,
+    selectTrack,
     seek,
     volume,
     setVolume,
