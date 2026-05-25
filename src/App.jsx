@@ -237,6 +237,7 @@ export default function App() {
   const [streamTracks, setStreamTracks] = useState(() => (
     Array.isArray(resumeState?.streamTracks) ? resumeState.streamTracks : []
   ));
+  const [streamAutoplayKey, setStreamAutoplayKey] = useState(0);
   const [spotifyPlaylists, setSpotifyPlaylists] = useState([]);
   const [applePlaylists, setApplePlaylists] = useState([]);
   const [youtubePlaylists, setYoutubePlaylists] = useState([]);
@@ -292,6 +293,7 @@ export default function App() {
   const streaming = useSpotifyPlayer(streamTracks, playMode, {
     trackIndex: resumeState?.source === 'streaming' ? resumeState.trackIndex : 0,
     currentTime: resumeState?.source === 'streaming' ? resumeState.currentTime : 0,
+    autoplayKey: streamAutoplayKey,
   });
   const player = source === 'streaming' ? streaming : local;
 
@@ -429,6 +431,7 @@ export default function App() {
       }
       setStreamTracks(tracks);
       setSource('streaming');
+      setStreamAutoplayKey((key) => key + 1);
       setYoutubeUrlInput('');
     } catch (err) {
       setSettingsError(err.message);
@@ -476,6 +479,7 @@ export default function App() {
       }
       setStreamTracks(tracks);
       setSource('streaming');
+      setStreamAutoplayKey((key) => key + 1);
     } catch (err) {
       setSettingsError(err.message);
     } finally {

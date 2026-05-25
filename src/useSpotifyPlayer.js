@@ -21,6 +21,8 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
   const nextPickRef = useRef(null);
   const shuffleBagRef = useRef([]);
   const restoreTimeRef = useRef(initialState.currentTime || 0);
+  const autoplayKey = initialState.autoplayKey || 0;
+  const lastAutoplayKeyRef = useRef(autoplayKey);
   const [trackIndex, setTrackIndex] = useState(initialState.trackIndex || 0);
 
   // Reset to track 0 on playlist change, otherwise the stale index can be
@@ -108,6 +110,11 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
 
     let cancelled = false;
     let restoreMetadata = null;
+    if (autoplayKey !== lastAutoplayKeyRef.current) {
+      lastAutoplayKeyRef.current = autoplayKey;
+      failedLoadsRef.current = 0;
+      wantsPlayRef.current = true;
+    }
     setLoading(true);
     setPlaybackStatus(null);
 
@@ -151,7 +158,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
       cancelled = true;
       if (restoreMetadata) audio.removeEventListener('loadedmetadata', restoreMetadata);
     };
-  }, [trackIndex, tracks, markTrackFailed]);
+  }, [trackIndex, tracks, autoplayKey, markTrackFailed]);
 
   // ── Precompute next index + prefetch surrounding tracks ───
   useEffect(() => {
