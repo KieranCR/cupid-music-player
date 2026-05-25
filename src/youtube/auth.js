@@ -13,8 +13,8 @@
  *                                  it's bundled in installed apps by design.
  */
 
-const CLIENT_ID = import.meta.env.VITE_YOUTUBE_CLIENT_ID;
-const CLIENT_SECRET = import.meta.env.VITE_YOUTUBE_CLIENT_SECRET;
+const CLIENT_ID = import.meta.env.DEV ? import.meta.env.VITE_YOUTUBE_CLIENT_ID : '';
+const CLIENT_SECRET = import.meta.env.DEV ? import.meta.env.VITE_YOUTUBE_CLIENT_SECRET : '';
 const SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 
 const TOKEN_KEY = 'youtube_token';

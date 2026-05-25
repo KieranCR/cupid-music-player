@@ -5,7 +5,7 @@
  * Uses a saved client ID, with VITE_SPOTIFY_CLIENT_ID as a dev fallback.
  */
 
-const ENV_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+const ENV_CLIENT_ID = import.meta.env.DEV ? import.meta.env.VITE_SPOTIFY_CLIENT_ID : '';
 const REDIRECT_URI = 'http://127.0.0.1:5173/callback';
 const SCOPES = [
   'streaming',
