@@ -71,6 +71,7 @@
       "icon": "assets/pink/icon.png"
     },
     "nsis": {
+      "guid": "deeda36d-a0aa-586a-9013-1ab7c42a7a39",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,

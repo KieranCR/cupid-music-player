@@ -1278,6 +1278,14 @@ export default function App() {
             {musicService === 'apple' && (
               !appleConnected ? (
                 <>
+                  <div className="settings-theme-row">
+                    <button
+                      className="settings-theme-btn"
+                      onClick={() => setShowAppleHelp(true)}
+                    >
+                      setup help
+                    </button>
+                  </div>
                   <input
                     className="settings-input"
                     type="text"
@@ -1322,12 +1330,6 @@ export default function App() {
                       }}
                     >
                       log in
-                    </button>
-                    <button
-                      className="settings-theme-btn"
-                      onClick={() => setShowAppleHelp(true)}
-                    >
-                      setup help
                     </button>
                   </div>
                 </>
