@@ -28,10 +28,11 @@ This guide walks you through connecting Cupid Player to your Spotify account. Au
 - Use `http`, not `https`.
 - Do **not** add a trailing slash.
 
-## 3. Add Your Client ID
+## 3. Use Your Client ID
 
-1. Copy your **Client ID** from the app's dashboard
-2. Create a `.env` file in the project root (use `.env.example` as a template):
+Copy your **Client ID** from the app's dashboard. You can paste it directly into Cupid Player's Spotify settings when you log in.
+
+If you are developing locally and want a default value, you can also create a `.env` file in the project root:
    ```
    VITE_SPOTIFY_CLIENT_ID=your_client_id_here
    ```
@@ -52,9 +53,11 @@ npm run dev
 ```
 
 1. Click the settings icon in the player
-2. Click **log in** under Spotify
-3. Authorize the app when prompted
-4. Your playlists will appear — click any playlist to load and play it
+2. Switch the music service to **spotify**
+3. Paste your Client ID if the field is empty
+4. Click **log in**
+5. Authorize the app when prompted
+6. Your playlists will appear and can be opened from the playlists button
 
 ## How It Works
 

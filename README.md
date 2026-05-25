@@ -110,9 +110,12 @@ Stream any track from your Spotify playlists. Audio is fetched from YouTube via 
 
 1. Create a Spotify app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
 2. Add `http://127.0.0.1:5173/callback` as a redirect URI
-3. Copy `.env.example` to `.env` and add your Client ID
+3. Copy your Client ID
 4. Add yourself under Settings > User Management
-5. Click the settings icon in the player > log in
+5. Click the settings icon in the player > switch to spotify
+6. Paste your Client ID into the app and log in
+
+You can still set `VITE_SPOTIFY_CLIENT_ID` in `.env` as a dev fallback, but it is not required.
 
 See [SPOTIFY_SETUP.md](SPOTIFY_SETUP.md) for detailed instructions and troubleshooting.
 
