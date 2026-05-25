@@ -284,6 +284,11 @@
   outline: none;
 }
 
+.settings-textarea {
+  min-height: calc(48 / 306 * 100vw);
+  resize: none;
+}
+
 .settings-about {
   border: calc(1 / 306 * 100vw) solid var(--color-panel-text);
   border-radius: calc(2 / 306 * 100vw);

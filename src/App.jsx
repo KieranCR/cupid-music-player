@@ -80,6 +80,7 @@ const SLEEP_TIMER_OPTIONS = [
 const RESUME_KEY = 'cupid-player-resume';
 const NIGHT_MODE_KEY = 'cupid-player-night-mode';
 const SPOTIFY_REDIRECT_URI = 'http://127.0.0.1:5173/callback';
+const APPLE_KEYS_URL = 'https://developer.apple.com/account/resources/authkeys/list';
 
 function readResumeState() {
   try {
@@ -232,6 +233,33 @@ function SpotifySetupHelp() {
   );
 }
 
+function AppleSetupHelp() {
+  return (
+    <div className="settings-help">
+      <div className="settings-help-copy">
+        apple music needs a developer key so cupid player can create a musickit token.
+      </div>
+      <div className="settings-help-list">
+        <span>1. open apple developer keys</span>
+        <span>2. create a key with musickit enabled</span>
+        <span>3. copy your team id and key id</span>
+        <span>4. open the downloaded .p8 file and paste its contents</span>
+      </div>
+      <div className="settings-help-copy">
+        this requires an apple developer account. the key stays on this computer.
+      </div>
+      <a
+        className="settings-theme-btn settings-help-link"
+        href={APPLE_KEYS_URL}
+        target="_blank"
+        rel="noreferrer"
+      >
+        open keys
+      </a>
+    </div>
+  );
+}
+
 function TrackList({ tracks, activeIndex, playMode, onSelect }) {
   const activeRef = useRef(null);
   const nextIndex = playMode === 'normal' && tracks.length > 1
@@ -309,6 +337,11 @@ export default function App() {
   const [spotifyConnected, setSpotifyConnected] = useState(isSpotifyLoggedIn());
   const [spotifyClientId, setSpotifyClientIdState] = useState(getSpotifyClientId);
   const [appleConnected, setAppleConnected] = useState(isAppleLoggedIn());
+  const [appleConfigReady, setAppleConfigReady] = useState(false);
+  const [appleConfigSource, setAppleConfigSource] = useState(null);
+  const [appleTeamId, setAppleTeamId] = useState('');
+  const [appleKeyId, setAppleKeyId] = useState('');
+  const [applePrivateKey, setApplePrivateKey] = useState('');
   const [youtubeConnected, setYoutubeConnected] = useState(isYouTubeLoggedIn());
   const [youtubeLoggingIn, setYoutubeLoggingIn] = useState(false);
   const [youtubeUrlInput, setYoutubeUrlInput] = useState('');
@@ -363,6 +396,41 @@ export default function App() {
   }, []);
 
   useEffect(() => { loadLocalPlaylist(); }, [loadLocalPlaylist]);
+
+  const loadAppleConfig = useCallback(async () => {
+    if (!window.cupid?.getAppleMusicConfig) return;
+
+    const config = await window.cupid.getAppleMusicConfig();
+    setAppleConfigReady(!!config?.configured);
+    setAppleConfigSource(config?.source || null);
+    setAppleTeamId(config?.teamId || '');
+    setAppleKeyId(config?.keyId || '');
+  }, []);
+
+  useEffect(() => {
+    loadAppleConfig().catch((err) => {
+      console.warn('Failed to load Apple Music config:', err);
+    });
+  }, [loadAppleConfig]);
+
+  const saveAppleConfig = useCallback(async () => {
+    if (!window.cupid?.saveAppleMusicConfig) {
+      throw new Error('Apple Music setup is unavailable in this build.');
+    }
+
+    const config = await window.cupid.saveAppleMusicConfig({
+      teamId: appleTeamId,
+      keyId: appleKeyId,
+      privateKey: applePrivateKey,
+    });
+
+    setAppleConfigReady(!!config?.configured);
+    setAppleConfigSource(config?.source || null);
+    setAppleTeamId(config?.teamId || appleTeamId);
+    setAppleKeyId(config?.keyId || appleKeyId);
+    setApplePrivateKey('');
+    return config;
+  }, [appleKeyId, applePrivateKey, appleTeamId]);
 
   const resumeAutoplay = resumeState
     ? resumeState.wasPlaying !== false
@@ -443,6 +511,11 @@ export default function App() {
 
   const sleepRemaining = sleepEndsAt ? Math.max(0, sleepEndsAt - sleepNow) : 0;
   const spotifyReady = spotifyClientId.trim().length > 0 || isSpotifyConfigured();
+  const appleReady = appleConfigReady || (
+    appleTeamId.trim().length > 0 &&
+    appleKeyId.trim().length > 0 &&
+    applePrivateKey.trim().length > 0
+  );
 
   useEffect(() => {
     try {
@@ -608,6 +681,7 @@ export default function App() {
   const [showTrackView, setShowTrackView] = useState(false);
   const [showPlaylistView, setShowPlaylistView] = useState(false);
   const [showSpotifyHelp, setShowSpotifyHelp] = useState(false);
+  const [showAppleHelp, setShowAppleHelp] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [hoverProgress, setHoverProgress] = useState(null);
   const seekRef = useRef(null);
@@ -616,6 +690,7 @@ export default function App() {
     if (showSettings) {
       setShowAbout(false);
       setShowSpotifyHelp(false);
+      setShowAppleHelp(false);
     }
     setShowTrackView(false);
     setShowPlaylistView(false);
@@ -627,6 +702,7 @@ export default function App() {
     setShowSettings(false);
     setShowPlaylistView(false);
     setShowSpotifyHelp(false);
+    setShowAppleHelp(false);
     setShowTrackView((v) => !v);
   }, []);
 
@@ -957,9 +1033,9 @@ export default function App() {
       )}
 
       {/* Settings panel */}
-      {(showSettings || showTrackView || showPlaylistView || showSpotifyHelp) && (
+      {(showSettings || showTrackView || showPlaylistView || showSpotifyHelp || showAppleHelp) && (
         <div className="settings-panel">
-          <div className={`settings-panel-inner ${(showTrackView || showPlaylistView || showSpotifyHelp) ? 'track-picker' : ''}`}>
+          <div className={`settings-panel-inner ${(showTrackView || showPlaylistView || showSpotifyHelp || showAppleHelp) ? 'track-picker' : ''}`}>
             {showTrackView ? (
               <>
                 <button
@@ -1019,6 +1095,19 @@ export default function App() {
                   <span>spotify setup</span>
                 </div>
                 <SpotifySetupHelp />
+              </>
+            ) : showAppleHelp ? (
+              <>
+                <button
+                  className="settings-theme-btn"
+                  onClick={() => setShowAppleHelp(false)}
+                >
+                  back
+                </button>
+                <div className="settings-panel-heading">
+                  <span>apple setup</span>
+                </div>
+                <AppleSetupHelp />
               </>
             ) : showAbout ? (
               <>
@@ -1188,17 +1277,60 @@ export default function App() {
 
             {musicService === 'apple' && (
               !appleConnected ? (
-                <button className="settings-theme-btn" onClick={async () => {
-                  try {
-                    await appleLogin();
-                    setAppleConnected(true);
-                    loadApplePlaylists();
-                  } catch (err) {
-                    setSettingsError(err.message);
-                  }
-                }}>
-                  log in
-                </button>
+                <>
+                  <input
+                    className="settings-input"
+                    type="text"
+                    placeholder="apple team id"
+                    value={appleTeamId}
+                    onChange={(e) => setAppleTeamId(e.target.value)}
+                  />
+                  <input
+                    className="settings-input"
+                    type="text"
+                    placeholder="apple key id"
+                    value={appleKeyId}
+                    onChange={(e) => setAppleKeyId(e.target.value)}
+                  />
+                  <textarea
+                    className="settings-input settings-textarea"
+                    placeholder={appleConfigReady ? 'private key saved' : 'paste .p8 key contents'}
+                    value={applePrivateKey}
+                    onChange={(e) => setApplePrivateKey(e.target.value)}
+                  />
+                  {appleConfigReady && (
+                    <div className="settings-label">
+                      apple setup saved{appleConfigSource === 'env' ? ' from env' : ''}
+                    </div>
+                  )}
+                  <div className="settings-theme-row">
+                    <button
+                      className={`settings-theme-btn ${!appleReady ? 'disabled' : ''}`}
+                      disabled={!appleReady}
+                      onClick={async () => {
+                        setSettingsError(null);
+                        try {
+                          if (!appleConfigReady || applePrivateKey.trim()) {
+                            await saveAppleConfig();
+                          }
+                          await appleLogin();
+                          setAppleConnected(true);
+                          loadApplePlaylists();
+                        } catch (err) {
+                          setSettingsError(err.message);
+                        }
+                      }}
+                    >
+                      log in
+                    </button>
+                    <button
+                      className="settings-theme-btn"
+                      onClick={() => setShowAppleHelp(true)}
+                    >
+                      setup help
+                    </button>
+                  </div>
+                </>
               ) : (
                 <>
                   <button

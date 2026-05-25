@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('cupid', {
   getStreamUrl: (title, artist) => ipcRenderer.invoke('get-stream-url', title, artist),
   getStreamUrlById: (videoId) => ipcRenderer.invoke('get-stream-url-by-id', videoId),
   getAppleMusicToken: () => ipcRenderer.invoke('get-apple-music-token'),
+  getAppleMusicConfig: () => ipcRenderer.invoke('get-apple-music-config'),
+  saveAppleMusicConfig: (config) => ipcRenderer.invoke('save-apple-music-config', config),
   getLocalPlaylist: () => ipcRenderer.invoke('get-local-playlist'),
   getLocalAudioPath: (filename) => ipcRenderer.invoke('get-local-audio-path', filename),
   openMusicFolder: () => ipcRenderer.invoke('open-music-folder'),

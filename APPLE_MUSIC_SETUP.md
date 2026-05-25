@@ -20,8 +20,18 @@ This guide walks you through connecting Cupid Player to your Apple Music account
 
 ## 3. Add Your Credentials
 
+1. Click the settings icon in Cupid Player
+2. Switch to **apple** in the music dropdown
+3. Paste your Team ID and Key ID
+4. Open the downloaded `.p8` file in a text editor and paste the whole file contents into the private key box
+5. Click **log in**
+
+The app saves these details on your computer so you do not need to paste them again next time.
+
+For development, you can still use the old `.env` fallback:
+
 1. Place the `.p8` key file in the project root
-2. Add to your `.env` file:
+2. Add this to your `.env` file:
    ```
    APPLE_TEAM_ID=your_team_id
    APPLE_KEY_ID=your_key_id
@@ -52,7 +62,7 @@ Cupid Player uses MusicKit JS to authenticate with Apple Music and fetch your li
 
 ### `No Apple Music developer token`
 
-Check that your `.env` has `APPLE_TEAM_ID` and `APPLE_KEY_ID` set, and that the `.p8` file is in the project root.
+Open Apple setup help in the app and check that your Team ID, Key ID, and `.p8` key contents are saved. If you are using the dev fallback, check that your `.env` has `APPLE_TEAM_ID` and `APPLE_KEY_ID` set, and that the `.p8` file is in the project root.
 
 ### `MusicKit JS timed out`
 

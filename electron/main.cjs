@@ -30,30 +30,98 @@ protocol.registerSchemesAsPrivileged([
 let appleMusicToken = null;
 let appleMusicTokenExpiry = 0;
 
+function appleMusicConfigPath() {
+  return path.join(app.getPath('userData'), 'apple-music-config.json');
+}
+
+function readSavedAppleMusicConfig() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(appleMusicConfigPath(), 'utf8'));
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    const teamId = String(parsed.teamId || '').trim();
+    const keyId = String(parsed.keyId || '').trim();
+    const privateKey = String(parsed.privateKey || '').trim();
+
+    return teamId && keyId && privateKey ? { teamId, keyId, privateKey } : null;
+  } catch {
+    return null;
+  }
+}
+
+function readEnvAppleMusicConfig() {
+  const teamId = String(process.env.APPLE_TEAM_ID || '').trim();
+  const keyId = String(process.env.APPLE_KEY_ID || '').trim();
+
+  if (!teamId || !keyId) return null;
+
+  const projectRoot = path.join(__dirname, '..');
+  const keyFiles = fs.readdirSync(projectRoot).filter((f) => f.endsWith('.p8'));
+  if (keyFiles.length === 0) return null;
+
+  const privateKey = fs.readFileSync(path.join(projectRoot, keyFiles[0]), 'utf8').trim();
+  return privateKey ? { teamId, keyId, privateKey } : null;
+}
+
+function getAppleMusicConfig() {
+  return readSavedAppleMusicConfig() || readEnvAppleMusicConfig();
+}
+
+function getAppleMusicConfigStatus() {
+  const saved = readSavedAppleMusicConfig();
+  if (saved) {
+    return {
+      configured: true,
+      source: 'saved',
+      teamId: saved.teamId,
+      keyId: saved.keyId,
+      hasPrivateKey: true,
+    };
+  }
+
+  const env = readEnvAppleMusicConfig();
+  return {
+    configured: !!env,
+    source: env ? 'env' : null,
+    teamId: env?.teamId || '',
+    keyId: env?.keyId || '',
+    hasPrivateKey: !!env,
+  };
+}
+
+function saveAppleMusicConfig(config = {}) {
+  const current = readSavedAppleMusicConfig();
+  const teamId = String(config.teamId || '').trim();
+  const keyId = String(config.keyId || '').trim();
+  const privateKey = String(config.privateKey || '').trim() || current?.privateKey || '';
+
+  if (!teamId || !keyId || !privateKey) {
+    throw new Error('Enter your Apple Team ID, Key ID, and private key.');
+  }
+
+  fs.mkdirSync(path.dirname(appleMusicConfigPath()), { recursive: true });
+  fs.writeFileSync(appleMusicConfigPath(), JSON.stringify({ teamId, keyId, privateKey }, null, 2));
+  appleMusicToken = null;
+  appleMusicTokenExpiry = 0;
+
+  return getAppleMusicConfigStatus();
+}
+
 function generateAppleMusicToken() {
   if (appleMusicToken && Date.now() < appleMusicTokenExpiry) {
     return appleMusicToken;
   }
 
-  const teamId = process.env.APPLE_TEAM_ID;
-  const keyId = process.env.APPLE_KEY_ID;
+  const config = getAppleMusicConfig();
+  if (!config) return null;
 
-  if (!teamId || !keyId) return null;
-
-  // Find the .p8 key file in project root
-  const projectRoot = path.join(__dirname, '..');
-  const keyFiles = fs.readdirSync(projectRoot).filter((f) => f.endsWith('.p8'));
-  if (keyFiles.length === 0) return null;
-
-  const privateKey = fs.readFileSync(path.join(projectRoot, keyFiles[0]), 'utf8');
-
-  appleMusicToken = jwt.sign({}, privateKey, {
+  appleMusicToken = jwt.sign({}, config.privateKey, {
     algorithm: 'ES256',
     expiresIn: '180d',
-    issuer: teamId,
+    issuer: config.teamId,
     header: {
       alg: 'ES256',
-      kid: keyId,
+      kid: config.keyId,
     },
   });
 
@@ -629,6 +697,14 @@ function createWindow() {
 // ── Global IPC handlers (persist across window reloads) ──
 ipcMain.handle('get-apple-music-token', () => {
   return generateAppleMusicToken();
+});
+
+ipcMain.handle('get-apple-music-config', () => {
+  return getAppleMusicConfigStatus();
+});
+
+ipcMain.handle('save-apple-music-config', (_e, config) => {
+  return saveAppleMusicConfig(config);
 });
 
 ipcMain.handle('get-stream-url', async (_e, title, artist) => {

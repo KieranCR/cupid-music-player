@@ -134,9 +134,12 @@ See [SPOTIFY_SETUP.md](SPOTIFY_SETUP.md) for detailed instructions and troublesh
 Browse your Apple Music library playlists. Requires an Apple Developer account. **Apple Music subscription is not required for playback.**
 
 1. Create a MusicKit key at [developer.apple.com/account/resources/authkeys](https://developer.apple.com/account/resources/authkeys/list)
-2. Download the `.p8` key file and place it in the project root
-3. Add `APPLE_TEAM_ID` and `APPLE_KEY_ID` to your `.env`
-4. Click the settings icon > switch to apple > log in
+2. Download the `.p8` key file
+3. Click the settings icon > switch to apple
+4. Paste your Team ID, Key ID, and `.p8` key contents into the app
+5. Click log in
+
+You can still use `APPLE_TEAM_ID`, `APPLE_KEY_ID`, and a `.p8` file in the project root as a dev fallback, but it is not required for the packaged app.
 
 See [APPLE_MUSIC_SETUP.md](APPLE_MUSIC_SETUP.md) for detailed instructions and troubleshooting.
 
