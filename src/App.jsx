@@ -4,7 +4,15 @@ import './App.css';
 import useAudioPlayer from './useAudioPlayer';
 import useSpotifyPlayer from './useSpotifyPlayer';
 import useTheme from './useTheme';
-import { login as spotifyLogin, handleCallback, isLoggedIn as isSpotifyLoggedIn, logout as spotifyLogout } from './spotify/auth.js';
+import {
+  login as spotifyLogin,
+  handleCallback,
+  isLoggedIn as isSpotifyLoggedIn,
+  logout as spotifyLogout,
+  getClientId as getSpotifyClientId,
+  setClientId as setSpotifyClientId,
+  isConfigured as isSpotifyConfigured,
+} from './spotify/auth.js';
 import { fetchPlaylistTracks as fetchSpotifyTracks, fetchMyPlaylists as fetchSpotifyPlaylists } from './spotify/api.js';
 import { login as appleLogin, logout as appleLogout, isLoggedIn as isAppleLoggedIn, initMusicKit } from './apple/auth.js';
 import { fetchMyPlaylists as fetchApplePlaylists, fetchPlaylistTracks as fetchAppleTracks } from './apple/api.js';
@@ -221,6 +229,7 @@ export default function App() {
       : 'local'
   )); // 'local' | 'streaming'
   const [spotifyConnected, setSpotifyConnected] = useState(isSpotifyLoggedIn());
+  const [spotifyClientId, setSpotifyClientIdState] = useState(getSpotifyClientId);
   const [appleConnected, setAppleConnected] = useState(isAppleLoggedIn());
   const [youtubeConnected, setYoutubeConnected] = useState(isYouTubeLoggedIn());
   const [youtubeLoggingIn, setYoutubeLoggingIn] = useState(false);
@@ -302,11 +311,17 @@ export default function App() {
     muted,
     toggleMute,
     loading = false,
+    playbackStatus,
     trackIndex,
   } = player;
 
   const cyclePlayMode = useCallback(() => {
     setPlayMode((m) => m === 'normal' ? 'shuffle' : m === 'shuffle' ? 'repeat' : 'normal');
+  }, []);
+
+  const updateSpotifyClientId = useCallback((value) => {
+    setSpotifyClientIdState(value);
+    setSpotifyClientId(value);
   }, []);
 
   const pauseRef = useRef(pause);
@@ -339,6 +354,7 @@ export default function App() {
   }, [sleepEndsAt, showSleepCountdown]);
 
   const sleepRemaining = sleepEndsAt ? Math.max(0, sleepEndsAt - sleepNow) : 0;
+  const spotifyReady = spotifyClientId.trim().length > 0 || isSpotifyConfigured();
 
   useEffect(() => {
     try {
@@ -476,9 +492,15 @@ export default function App() {
   const [needleLifted, setNeedleLifted] = useState(false);
   const [starHovered, setStarHovered] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [hoverProgress, setHoverProgress] = useState(null);
   const seekRef = useRef(null);
+
+  const toggleSettings = useCallback(() => {
+    if (showSettings) setShowAbout(false);
+    setShowSettings((v) => !v);
+  }, [showSettings]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -697,7 +719,7 @@ export default function App() {
       <div className="now-playing">
         <div className="track-info">
           <div className="now-playing-label">
-            {loading ? 'loading...' : 'now playing...'}
+            {playbackStatus === 'failed' ? 'not found...' : loading ? 'loading...' : 'now playing...'}
           </div>
           <MarqueeText className="track-title" text={track.title} />
           <div className="track-artist">by {track.artist}</div>
@@ -790,7 +812,7 @@ export default function App() {
       <div className="btn btn-exit" onClick={() => window.cupid?.close()} />
 
       {/* Settings button */}
-      <div className="btn btn-settings" onClick={() => setShowSettings((v) => !v)} />
+      <div className="btn btn-settings" onClick={toggleSettings} />
 
       {/* Debug overlays — toggle with showDebug state */}
       {showDebug && (
@@ -808,6 +830,31 @@ export default function App() {
       {showSettings && (
         <div className="settings-panel">
           <div className="settings-panel-inner">
+            {showAbout ? (
+              <>
+                <button
+                  className="settings-theme-btn"
+                  onClick={() => setShowAbout(false)}
+                >
+                  back
+                </button>
+                <div className="settings-about">
+                  <div className="settings-about-title">cupid player</div>
+                  <div className="settings-about-copy">a tiny desktop music player</div>
+                  <div className="settings-about-list">
+                    <div className="settings-about-person">
+                      <span>original app</span>
+                      <strong>cupidity</strong>
+                    </div>
+                    <div className="settings-about-person">
+                      <span>fork updates</span>
+                      <strong>Kieran</strong>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
             <div className="settings-label">theme</div>
             <div className="settings-theme-row">
               <button
@@ -828,6 +875,12 @@ export default function App() {
               onClick={() => setNightMode((v) => !v)}
             >
               night {nightMode ? 'on' : 'off'}
+            </button>
+            <button
+              className="settings-theme-btn"
+              onClick={() => setShowAbout(true)}
+            >
+              about
             </button>
             <div className="settings-label">music</div>
             <SettingsDropdown
@@ -876,9 +929,29 @@ export default function App() {
 
             {musicService === 'spotify' && (
               !spotifyConnected ? (
-                <button className="settings-theme-btn" onClick={() => spotifyLogin()}>
-                  log in
-                </button>
+                <>
+                  <input
+                    className="settings-input"
+                    type="text"
+                    placeholder="spotify client id"
+                    value={spotifyClientId}
+                    onChange={(e) => updateSpotifyClientId(e.target.value)}
+                  />
+                  <button
+                    className={`settings-theme-btn ${!spotifyReady ? 'disabled' : ''}`}
+                    disabled={!spotifyReady}
+                    onClick={async () => {
+                      setSettingsError(null);
+                      try {
+                        await spotifyLogin();
+                      } catch (err) {
+                        setSettingsError(err.message);
+                      }
+                    }}
+                  >
+                    log in
+                  </button>
+                </>
               ) : (
                 <>
                   <PlaylistList
@@ -1026,6 +1099,8 @@ export default function App() {
             )}
 
             {settingsError && <div className="settings-error">{settingsError}</div>}
+              </>
+            )}
           </div>
         </div>
       )}

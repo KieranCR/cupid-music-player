@@ -2,10 +2,10 @@
  * Spotify OAuth 2.0 PKCE Authorization Flow
  *
  * No backend needed — the entire flow runs in the browser.
- * Requires VITE_SPOTIFY_CLIENT_ID to be set in your .env file.
+ * Uses a saved client ID, with VITE_SPOTIFY_CLIENT_ID as a dev fallback.
  */
 
-const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+const ENV_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 const REDIRECT_URI = 'http://127.0.0.1:5173/callback';
 const SCOPES = [
   'streaming',
@@ -21,6 +21,7 @@ const TOKEN_KEY = 'spotify_token';
 const REFRESH_KEY = 'spotify_refresh_token';
 const EXPIRY_KEY = 'spotify_token_expiry';
 const CODE_VERIFIER_KEY = 'spotify_code_verifier';
+const CLIENT_ID_KEY = 'spotify_client_id';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -48,18 +49,37 @@ async function generateCodeChallenge(verifier) {
 
 // ── Public API ────────────────────────────────────────────────
 
+export function getClientId() {
+  return localStorage.getItem(CLIENT_ID_KEY)?.trim() || ENV_CLIENT_ID || '';
+}
+
+export function setClientId(value) {
+  const next = value.trim();
+  if (next) localStorage.setItem(CLIENT_ID_KEY, next);
+  else localStorage.removeItem(CLIENT_ID_KEY);
+}
+
+export function isConfigured() {
+  return !!getClientId();
+}
+
 /**
  * Initiate the Spotify login flow.
  * Redirects the browser to Spotify's authorize endpoint.
  */
 export async function login() {
+  const clientId = getClientId();
+  if (!clientId) {
+    throw new Error('Enter a Spotify client ID first.');
+  }
+
   const verifier = generateRandomString(64);
   const challenge = await generateCodeChallenge(verifier);
 
   localStorage.setItem(CODE_VERIFIER_KEY, verifier);
 
   const params = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: clientId,
     response_type: 'code',
     redirect_uri: REDIRECT_URI,
     scope: SCOPES.join(' '),
@@ -101,8 +121,13 @@ export async function handleCallback() {
       throw new Error('Missing PKCE code verifier — please try logging in again.');
     }
 
+    const clientId = getClientId();
+    if (!clientId) {
+      throw new Error('Enter a Spotify client ID first.');
+    }
+
     const body = new URLSearchParams({
-      client_id: CLIENT_ID,
+      client_id: clientId,
       grant_type: 'authorization_code',
       code,
       redirect_uri: REDIRECT_URI,
@@ -165,8 +190,14 @@ async function refreshAccessToken() {
     return null;
   }
 
+  const clientId = getClientId();
+  if (!clientId) {
+    logout();
+    return null;
+  }
+
   const body = new URLSearchParams({
-    client_id: CLIENT_ID,
+    client_id: clientId,
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
   });

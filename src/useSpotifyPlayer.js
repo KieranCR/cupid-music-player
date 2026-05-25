@@ -10,6 +10,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { takeShuffleIndex } from './shuffleBag.js';
 
+const FAILED_TRACK_DELAY = 1200;
+
 export default function useSpotifyPlayer(tracks, playMode = 'normal', initialState = {}) {
   const audioRef = useRef(new Audio());
   const playModeRef = useRef(playMode);
@@ -37,6 +39,8 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [playbackStatus, setPlaybackStatus] = useState(null);
+  const failedLoadsRef = useRef(0);
   const [volume, setVolumeState] = useState(() => {
     const saved = localStorage.getItem('cupid-volume');
     return saved !== null ? parseFloat(saved) : 1;
@@ -54,6 +58,48 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
     uri: null,
   };
 
+  const advanceToNext = useCallback(() => {
+    setTrackIndex((prev) => {
+      if (tracks.length === 0) return 0;
+      if (nextIdxRef.current !== null && nextIdxRef.current !== prev) {
+        const next = nextIdxRef.current;
+        if (nextPickRef.current?.index === next) {
+          shuffleBagRef.current = nextPickRef.current.bag;
+        }
+        nextIdxRef.current = null;
+        nextPickRef.current = null;
+        return next;
+      }
+      if (playModeRef.current === 'shuffle' && tracks.length > 1) {
+        const next = takeShuffleIndex(shuffleBagRef.current, tracks.length, prev);
+        shuffleBagRef.current = next.bag;
+        return next.index;
+      }
+      return (prev + 1) % tracks.length;
+    });
+  }, [tracks.length]);
+
+  const markTrackFailed = useCallback((isCancelled = () => false) => {
+    if (isCancelled()) return;
+
+    const shouldSkip = wantsPlayRef.current && tracks.length > 1;
+    failedLoadsRef.current += 1;
+    setIsPlaying(false);
+    setLoading(false);
+    setPlaybackStatus('failed');
+
+    if (shouldSkip && failedLoadsRef.current < tracks.length) {
+      window.setTimeout(() => {
+        if (isCancelled()) return;
+        setPlaybackStatus(null);
+        setLoading(true);
+        advanceToNext();
+      }, FAILED_TRACK_DELAY);
+    } else {
+      wantsPlayRef.current = false;
+    }
+  }, [tracks.length, advanceToNext]);
+
   // ── Load track when index or tracks change ────────────────
   useEffect(() => {
     if (tracks.length === 0) return;
@@ -63,6 +109,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
     let cancelled = false;
     let restoreMetadata = null;
     setLoading(true);
+    setPlaybackStatus(null);
 
     async function loadStream() {
       try {
@@ -91,12 +138,8 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
           audio.play().catch(() => {});
         }
       } catch (err) {
-        console.error('Failed to get stream:', err.message);
-        if (!cancelled) {
-          wantsPlayRef.current = false;
-          setIsPlaying(false);
-          setLoading(false);
-        }
+        console.warn('Could not play track:', err.message);
+        markTrackFailed(() => cancelled);
       } finally {
         if (!cancelled && !wantsPlayRef.current) setLoading(false);
       }
@@ -108,7 +151,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
       cancelled = true;
       if (restoreMetadata) audio.removeEventListener('loadedmetadata', restoreMetadata);
     };
-  }, [trackIndex, tracks]);
+  }, [trackIndex, tracks, markTrackFailed]);
 
   // ── Precompute next index + prefetch surrounding tracks ───
   useEffect(() => {
@@ -165,12 +208,19 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
     };
 
     const onPlaying = () => {
+      failedLoadsRef.current = 0;
+      setPlaybackStatus(null);
       setLoading(false);
       setIsPlaying(true);
     };
 
     const onWaiting = () => {
       if (wantsPlayRef.current) setLoading(true);
+    };
+
+    const onError = () => {
+      if (!wantsPlayRef.current) return;
+      markTrackFailed();
     };
 
     const onEnded = () => {
@@ -181,29 +231,14 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
         audio.play().catch(() => {});
         return;
       }
-      setTrackIndex((prev) => {
-        if (nextIdxRef.current !== null && nextIdxRef.current !== prev) {
-          const next = nextIdxRef.current;
-          if (nextPickRef.current?.index === next) {
-            shuffleBagRef.current = nextPickRef.current.bag;
-          }
-          nextIdxRef.current = null;
-          nextPickRef.current = null;
-          return next;
-        }
-        if (playModeRef.current === 'shuffle' && tracks.length > 1) {
-          const next = takeShuffleIndex(shuffleBagRef.current, tracks.length, prev);
-          shuffleBagRef.current = next.bag;
-          return next.index;
-        }
-        return (prev + 1) % tracks.length;
-      });
+      advanceToNext();
     };
 
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
     audio.addEventListener('playing', onPlaying);
     audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('error', onError);
     audio.addEventListener('ended', onEnded);
 
     return () => {
@@ -211,9 +246,10 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
       audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('error', onError);
       audio.removeEventListener('ended', onEnded);
     };
-  }, [tracks.length]);
+  }, [tracks.length, advanceToNext, markTrackFailed]);
 
   // ── Playback controls ────────────────────────────────────
 
@@ -227,38 +263,35 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
   const togglePlay = useCallback(() => {
     if (isPlaying || loading) {
       pause();
+    } else if (playbackStatus === 'failed') {
+      if (tracks.length > 1) {
+        failedLoadsRef.current = 0;
+        wantsPlayRef.current = true;
+        setPlaybackStatus(null);
+        setLoading(true);
+        advanceToNext();
+      }
     } else {
+      failedLoadsRef.current = 0;
+      setPlaybackStatus(null);
       wantsPlayRef.current = true;
       if (!audio.src || audio.readyState < 3) setLoading(true);
       audio.play().catch(() => {});
     }
-  }, [isPlaying, loading, pause]);
+  }, [isPlaying, loading, playbackStatus, tracks.length, pause, advanceToNext]);
 
   const next = useCallback(() => {
-    setTrackIndex((prev) => {
-      // Prefer the precomputed next (matches what prefetch warmed)
-      if (nextIdxRef.current !== null && nextIdxRef.current !== prev) {
-        const next = nextIdxRef.current;
-        if (nextPickRef.current?.index === next) {
-          shuffleBagRef.current = nextPickRef.current.bag;
-        }
-        nextIdxRef.current = null;
-        nextPickRef.current = null;
-        return next;
-      }
-      if (playModeRef.current === 'shuffle' && tracks.length > 1) {
-        const next = takeShuffleIndex(shuffleBagRef.current, tracks.length, prev);
-        shuffleBagRef.current = next.bag;
-        return next.index;
-      }
-      return (prev + 1) % tracks.length;
-    });
+    failedLoadsRef.current = 0;
+    setPlaybackStatus(null);
+    advanceToNext();
     wantsPlayRef.current = true;
     setLoading(true);
     setIsPlaying(false);
-  }, [tracks.length]);
+  }, [advanceToNext]);
 
   const prev = useCallback(() => {
+    failedLoadsRef.current = 0;
+    setPlaybackStatus(null);
     if (audio.currentTime > 3) {
       audio.currentTime = 0;
     } else {
@@ -267,7 +300,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
     wantsPlayRef.current = true;
     setLoading(true);
     setIsPlaying(false);
-  }, [tracks.length]);
+  }, [tracks.length, advanceToNext]);
 
   const seek = useCallback((fraction) => {
     if (audio.duration) {
@@ -307,5 +340,6 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
     muted,
     toggleMute,
     loading,
+    playbackStatus,
   };
 }
