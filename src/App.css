@@ -316,25 +316,38 @@
   gap: calc(4 / 306 * 100vw);
 }
 
-.settings-about-person {
+.settings-about-person,
+.settings-about-link {
   display: flex;
   flex-direction: column;
   gap: calc(1 / 306 * 100vw);
 }
 
 .settings-about-person span,
-.settings-about-person strong {
+.settings-about-person strong,
+.settings-about-link span,
+.settings-about-link strong {
   font-family: 'Rainyhearts', monospace;
   color: var(--color-panel-text);
   line-height: 1;
 }
 
-.settings-about-person span {
+.settings-about-link {
+  text-decoration: none;
+}
+
+.settings-about-link:hover strong {
+  text-decoration: underline;
+}
+
+.settings-about-person span,
+.settings-about-link span {
   font-size: calc(9 / 306 * 100vw);
   opacity: 0.75;
 }
 
-.settings-about-person strong {
+.settings-about-person strong,
+.settings-about-link strong {
   font-size: calc(11 / 306 * 100vw);
   font-weight: 400;
 }
@@ -383,6 +396,46 @@
   cursor: default;
 }
 
+.settings-panel-heading,
+.settings-track-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: calc(1 / 306 * 100vw) solid var(--color-secondary);
+  padding-bottom: calc(4 / 306 * 100vw);
+}
+
+.settings-panel-heading span,
+.settings-panel-heading small,
+.settings-track-heading span,
+.settings-track-heading small {
+  font-family: 'Rainyhearts', monospace;
+  color: var(--color-panel-text);
+  line-height: 1;
+}
+
+.settings-panel-heading span,
+.settings-track-heading span {
+  font-size: calc(14 / 306 * 100vw);
+}
+
+.settings-panel-heading small,
+.settings-track-heading small {
+  font-size: calc(10 / 306 * 100vw);
+  opacity: 0.75;
+}
+
+.track-picker .settings-playlist-list {
+  max-height: calc(300 / 306 * 100vw);
+  gap: calc(3 / 306 * 100vw);
+}
+
+.track-picker .settings-playlist-item {
+  height: calc(32 / 306 * 100vw);
+  font-size: calc(13 / 306 * 100vw);
+  padding: 0 calc(7 / 306 * 100vw);
+}
+
 .settings-track-list {
   max-height: calc(300 / 306 * 100vw);
   overflow-y: auto;
@@ -401,30 +454,6 @@
   font-size: calc(11 / 306 * 100vw);
   color: var(--color-panel-text);
   opacity: 0.8;
-}
-
-.settings-track-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  border-bottom: calc(1 / 306 * 100vw) solid var(--color-secondary);
-  padding-bottom: calc(4 / 306 * 100vw);
-}
-
-.settings-track-heading span,
-.settings-track-heading small {
-  font-family: 'Rainyhearts', monospace;
-  color: var(--color-panel-text);
-  line-height: 1;
-}
-
-.settings-track-heading span {
-  font-size: calc(14 / 306 * 100vw);
-}
-
-.settings-track-heading small {
-  font-size: calc(10 / 306 * 100vw);
-  opacity: 0.75;
 }
 
 .settings-track-item {

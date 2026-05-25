@@ -16,6 +16,15 @@ A pixel-art desktop music player built with Electron, Vite, and React.
 - Custom frameless window with drag and resize
 - Dynamic dock/taskbar icon that matches the active theme
 
+## Screenshots
+
+![Alt text](https://kierancr.com/images/cupidplayer/cupid1.png "Main Player View")
+![Alt text](https://kierancr.com/images/cupidplayer/cupid2.png "Browse Tracks")
+![Alt text](https://kierancr.com/images/cupidplayer/cupid3.png "Alternate Blue Theme")
+![Alt text](https://kierancr.com/images/cupidplayer/cupid4.png "Night Mode & Settings")
+![Alt text](https://kierancr.com/images/cupidplayer/cupid5.png "Choose a Playlist")
+![Alt text](https://kierancr.com/images/cupidplayer/cupid6.png "Credits & Links")
+
 ## Getting Started
 You only need 4 commands. Copy them one at a time:
 

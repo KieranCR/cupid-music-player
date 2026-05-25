@@ -196,6 +196,15 @@ function PlaylistList({ loading, playlists, loadingPlaylist, onSelect, emptyMess
   );
 }
 
+function AboutLink({ href, label, detail }) {
+  return (
+    <a className="settings-about-link" href={href} target="_blank" rel="noreferrer">
+      <span>{label}</span>
+      <strong>{detail}</strong>
+    </a>
+  );
+}
+
 function TrackList({ tracks, activeIndex, playMode, onSelect }) {
   const activeRef = useRef(null);
   const nextIndex = playMode === 'normal' && tracks.length > 1
@@ -538,6 +547,27 @@ export default function App() {
     }
   }, []);
 
+  const loadCurrentPlaylist = useCallback((id) => {
+    if (musicService !== 'spotify' && musicService !== 'apple' && musicService !== 'youtube') return;
+    loadPlaylist(id, musicService);
+  }, [loadPlaylist, musicService]);
+
+  const currentPlaylists = musicService === 'spotify'
+    ? spotifyPlaylists
+    : musicService === 'apple'
+      ? applePlaylists
+      : musicService === 'youtube'
+        ? youtubePlaylists
+        : [];
+
+  const refreshCurrentPlaylists = musicService === 'spotify'
+    ? loadSpotifyPlaylists
+    : musicService === 'apple'
+      ? loadApplePlaylists
+      : musicService === 'youtube'
+        ? loadYoutubePlaylists
+        : null;
+
   const { theme, toggleTheme, assets } = useTheme();
 
   const [recordFrame, setRecordFrame] = useState(0);
@@ -549,6 +579,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showTrackView, setShowTrackView] = useState(false);
+  const [showPlaylistView, setShowPlaylistView] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [hoverProgress, setHoverProgress] = useState(null);
   const seekRef = useRef(null);
@@ -558,12 +589,14 @@ export default function App() {
       setShowAbout(false);
     }
     setShowTrackView(false);
+    setShowPlaylistView(false);
     setShowSettings((v) => !v);
   }, [showSettings]);
 
   const toggleTrackView = useCallback(() => {
     setShowAbout(false);
     setShowSettings(false);
+    setShowPlaylistView(false);
     setShowTrackView((v) => !v);
   }, []);
 
@@ -894,9 +927,9 @@ export default function App() {
       )}
 
       {/* Settings panel */}
-      {(showSettings || showTrackView) && (
+      {(showSettings || showTrackView || showPlaylistView) && (
         <div className="settings-panel">
-          <div className={`settings-panel-inner ${showTrackView ? 'track-picker' : ''}`}>
+          <div className={`settings-panel-inner ${(showTrackView || showPlaylistView) ? 'track-picker' : ''}`}>
             {showTrackView ? (
               <>
                 <button
@@ -916,6 +949,34 @@ export default function App() {
                   onSelect={selectTrack}
                 />
               </>
+            ) : showPlaylistView ? (
+              <>
+                <button
+                  className="settings-theme-btn"
+                  onClick={() => setShowPlaylistView(false)}
+                >
+                  back
+                </button>
+                <div className="settings-panel-heading">
+                  <span>playlists</span>
+                  <small>{currentPlaylists.length}</small>
+                </div>
+                <PlaylistList
+                  loading={loadingPlaylists}
+                  playlists={currentPlaylists}
+                  loadingPlaylist={loadingPlaylist}
+                  onSelect={loadCurrentPlaylist}
+                />
+                {refreshCurrentPlaylists && (
+                  <button
+                    className={`settings-theme-btn ${loadingPlaylists ? 'disabled' : ''}`}
+                    disabled={loadingPlaylists}
+                    onClick={() => refreshCurrentPlaylists()}
+                  >
+                    refresh
+                  </button>
+                )}
+              </>
             ) : showAbout ? (
               <>
                 <button
@@ -928,14 +989,21 @@ export default function App() {
                   <div className="settings-about-title">cupid player</div>
                   <div className="settings-about-copy">a tiny desktop music player</div>
                   <div className="settings-about-list">
-                    <div className="settings-about-person">
-                      <span>original app</span>
-                      <strong>cupidity</strong>
-                    </div>
-                    <div className="settings-about-person">
-                      <span>fork updates</span>
-                      <strong>Kieran</strong>
-                    </div>
+                    <AboutLink
+                      href="https://github.com/cupidbity/cupid-music-player"
+                      label="original app"
+                      detail="cupidity"
+                    />
+                    <AboutLink
+                      href="https://github.com/KieranCR/cupid-music-player"
+                      label="fork repo"
+                      detail="KieranCR"
+                    />
+                    <AboutLink
+                      href="https://kierancr.com"
+                      label="site"
+                      detail="kierancr.com"
+                    />
                   </div>
                 </div>
               </>
@@ -1040,12 +1108,12 @@ export default function App() {
                 </>
               ) : (
                 <>
-                  <PlaylistList
-                    loading={loadingPlaylists}
-                    playlists={spotifyPlaylists}
-                    loadingPlaylist={loadingPlaylist}
-                    onSelect={(id) => loadPlaylist(id, 'spotify')}
-                  />
+                  <button
+                    className="settings-theme-btn"
+                    onClick={() => setShowPlaylistView(true)}
+                  >
+                    playlists ({spotifyPlaylists.length})
+                  </button>
                   <div className="settings-theme-row">
                     <button
                       className={`settings-theme-btn ${loadingPlaylists ? 'disabled' : ''}`}
@@ -1082,12 +1150,12 @@ export default function App() {
                 </button>
               ) : (
                 <>
-                  <PlaylistList
-                    loading={loadingPlaylists}
-                    playlists={applePlaylists}
-                    loadingPlaylist={loadingPlaylist}
-                    onSelect={(id) => loadPlaylist(id, 'apple')}
-                  />
+                  <button
+                    className="settings-theme-btn"
+                    onClick={() => setShowPlaylistView(true)}
+                  >
+                    playlists ({applePlaylists.length})
+                  </button>
                   <div className="settings-theme-row">
                     <button
                       className={`settings-theme-btn ${loadingPlaylists ? 'disabled' : ''}`}
@@ -1133,12 +1201,12 @@ export default function App() {
                   </button>
                 ) : (
                   <>
-                    <PlaylistList
-                      loading={loadingPlaylists}
-                      playlists={youtubePlaylists}
-                      loadingPlaylist={loadingPlaylist}
-                      onSelect={(id) => loadPlaylist(id, 'youtube')}
-                    />
+                    <button
+                      className="settings-theme-btn"
+                      onClick={() => setShowPlaylistView(true)}
+                    >
+                      playlists ({youtubePlaylists.length})
+                    </button>
                     <div className="settings-theme-row">
                       <button
                         className={`settings-theme-btn ${loadingPlaylists ? 'disabled' : ''}`}
