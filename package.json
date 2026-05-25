@@ -76,7 +76,9 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Cupid Player",
-      "uninstallDisplayName": "Cupid Player"
+      "uninstallDisplayName": "Cupid Player",
+      "installerSidebar": "build/installer-sidebar.bmp",
+      "uninstallerSidebar": "build/installer-sidebar.bmp"
     },
     "linux": {
       "target": "AppImage",
