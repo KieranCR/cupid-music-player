@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './App.css';
 import useAudioPlayer from './useAudioPlayer';
@@ -79,6 +79,8 @@ const SLEEP_TIMER_OPTIONS = [
 
 const RESUME_KEY = 'cupid-player-resume';
 const NIGHT_MODE_KEY = 'cupid-player-night-mode';
+const RESOLVER_AVOID_KEY = 'cupid-player-resolver-avoid';
+const DEFAULT_RESOLVER_AVOID = 'live, remix, cover, karaoke, sped up, slowed, instrumental';
 const SPOTIFY_REDIRECT_URI = 'http://127.0.0.1:5173/callback';
 const APPLE_KEYS_URL = 'https://developer.apple.com/account/resources/authkeys/list';
 
@@ -90,6 +92,21 @@ function readResumeState() {
   } catch {
     return null;
   }
+}
+
+function readResolverAvoidText() {
+  try {
+    return localStorage.getItem(RESOLVER_AVOID_KEY) || DEFAULT_RESOLVER_AVOID;
+  } catch {
+    return DEFAULT_RESOLVER_AVOID;
+  }
+}
+
+function splitResolverAvoidWords(value) {
+  return String(value || '')
+    .split(/[\n,]+/)
+    .map((word) => word.trim())
+    .filter(Boolean);
 }
 
 function SettingsDropdown({ value, options, onChange }) {
@@ -349,6 +366,10 @@ export default function App() {
     Array.isArray(resumeState?.streamTracks) ? resumeState.streamTracks : []
   ));
   const [streamAutoplayKey, setStreamAutoplayKey] = useState(0);
+  const [resolverAvoidText, setResolverAvoidText] = useState(readResolverAvoidText);
+  const [sourceInput, setSourceInput] = useState('');
+  const [sourceBusy, setSourceBusy] = useState(false);
+  const [sourceMessage, setSourceMessage] = useState(null);
   const [spotifyPlaylists, setSpotifyPlaylists] = useState([]);
   const [applePlaylists, setApplePlaylists] = useState([]);
   const [youtubePlaylists, setYoutubePlaylists] = useState([]);
@@ -435,6 +456,9 @@ export default function App() {
   const resumeAutoplay = resumeState
     ? resumeState.wasPlaying !== false
     : false;
+  const resolverOptions = useMemo(() => ({
+    avoidWords: splitResolverAvoidWords(resolverAvoidText),
+  }), [resolverAvoidText]);
 
   const local = useAudioPlayer(localTracks, playMode, window.cupid?.getLocalAudioPath, {
     trackIndex: resumeState?.source === 'local' ? resumeState.trackIndex : 0,
@@ -446,7 +470,7 @@ export default function App() {
     currentTime: resumeState?.source === 'streaming' ? resumeState.currentTime : 0,
     autoplay: resumeState?.source === 'streaming' && resumeAutoplay,
     autoplayKey: streamAutoplayKey,
-  });
+  }, resolverOptions);
   const player = source === 'streaming' ? streaming : local;
 
   const {
@@ -470,6 +494,60 @@ export default function App() {
     trackIndex,
   } = player;
   const queueTracks = source === 'streaming' ? streamTracks : localTracks;
+  const canChangeSource = source === 'streaming' && track?.title && track.title !== 'No track';
+
+  const openSourceView = useCallback(() => {
+    setSourceInput(track?.sourceVideoId || track?.videoId || '');
+    setSourceMessage(null);
+    setSettingsError(null);
+    setShowTrackView(false);
+    setShowSettings(false);
+    setShowSourceView(true);
+  }, [track]);
+
+  const saveCurrentSource = useCallback(async () => {
+    if (!canChangeSource || !sourceInput.trim()) return;
+
+    setSourceBusy(true);
+    setSourceMessage(null);
+    setSettingsError(null);
+    try {
+      const videoId = await window.cupid.saveStreamSource(track.title, track.artist, sourceInput.trim());
+      setStreamTracks((tracks) => tracks.map((item, index) => (
+        index === trackIndex ? { ...item, sourceVideoId: videoId } : item
+      )));
+      setSourceInput(videoId);
+      setSourceMessage('source saved');
+      setStreamAutoplayKey((key) => key + 1);
+    } catch (err) {
+      setSettingsError(err.message);
+    } finally {
+      setSourceBusy(false);
+    }
+  }, [canChangeSource, sourceInput, track, trackIndex]);
+
+  const clearCurrentSource = useCallback(async () => {
+    if (!canChangeSource) return;
+
+    setSourceBusy(true);
+    setSourceMessage(null);
+    setSettingsError(null);
+    try {
+      await window.cupid.clearStreamSource(track.title, track.artist);
+      setStreamTracks((tracks) => tracks.map((item, index) => {
+        if (index !== trackIndex) return item;
+        const { sourceVideoId, ...rest } = item;
+        return rest;
+      }));
+      setSourceInput(track.videoId || '');
+      setSourceMessage('source cleared');
+      setStreamAutoplayKey((key) => key + 1);
+    } catch (err) {
+      setSettingsError(err.message);
+    } finally {
+      setSourceBusy(false);
+    }
+  }, [canChangeSource, track, trackIndex]);
 
   const cyclePlayMode = useCallback(() => {
     setPlayMode((m) => m === 'normal' ? 'shuffle' : m === 'shuffle' ? 'repeat' : 'normal');
@@ -524,6 +602,14 @@ export default function App() {
       // ignore
     }
   }, [nightMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RESOLVER_AVOID_KEY, resolverAvoidText);
+    } catch {
+      // ignore
+    }
+  }, [resolverAvoidText]);
 
   useEffect(() => {
     if (source === 'local' && localTracks.length === 0) return;
@@ -680,6 +766,7 @@ export default function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [showTrackView, setShowTrackView] = useState(false);
   const [showPlaylistView, setShowPlaylistView] = useState(false);
+  const [showSourceView, setShowSourceView] = useState(false);
   const [showSpotifyHelp, setShowSpotifyHelp] = useState(false);
   const [showAppleHelp, setShowAppleHelp] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -694,6 +781,7 @@ export default function App() {
     }
     setShowTrackView(false);
     setShowPlaylistView(false);
+    setShowSourceView(false);
     setShowSettings((v) => !v);
   }, [showSettings]);
 
@@ -701,6 +789,7 @@ export default function App() {
     setShowAbout(false);
     setShowSettings(false);
     setShowPlaylistView(false);
+    setShowSourceView(false);
     setShowSpotifyHelp(false);
     setShowAppleHelp(false);
     setShowTrackView((v) => !v);
@@ -1033,9 +1122,9 @@ export default function App() {
       )}
 
       {/* Settings panel */}
-      {(showSettings || showTrackView || showPlaylistView || showSpotifyHelp || showAppleHelp) && (
+      {(showSettings || showTrackView || showPlaylistView || showSourceView || showSpotifyHelp || showAppleHelp) && (
         <div className="settings-panel">
-          <div className={`settings-panel-inner ${(showTrackView || showPlaylistView || showSpotifyHelp || showAppleHelp) ? 'track-picker' : ''}`}>
+          <div className={`settings-panel-inner ${(showTrackView || showPlaylistView || showSourceView || showSpotifyHelp || showAppleHelp) ? 'track-picker' : ''}`}>
             {showTrackView ? (
               <>
                 <button
@@ -1054,6 +1143,66 @@ export default function App() {
                   playMode={playMode}
                   onSelect={selectTrack}
                 />
+                {source === 'streaming' && (
+                  <button
+                    className="settings-theme-btn"
+                    onClick={openSourceView}
+                  >
+                    source
+                  </button>
+                )}
+              </>
+            ) : showSourceView ? (
+              <>
+                <button
+                  className="settings-theme-btn"
+                  onClick={() => {
+                    setShowSourceView(false);
+                    setShowTrackView(true);
+                  }}
+                >
+                  back
+                </button>
+                <div className="settings-panel-heading">
+                  <span>source</span>
+                </div>
+                <div className="settings-source-card">
+                  <span>current</span>
+                  <strong>{canChangeSource ? track.title : 'no track loaded'}</strong>
+                  {canChangeSource && track.artist && <small>{track.artist}</small>}
+                </div>
+                <input
+                  className="settings-input"
+                  type="text"
+                  placeholder="youtube url or id"
+                  value={sourceInput}
+                  onChange={(e) => setSourceInput(e.target.value)}
+                  disabled={!canChangeSource || sourceBusy}
+                />
+                <div className="settings-theme-row">
+                  <button
+                    className={`settings-theme-btn ${sourceBusy || !canChangeSource || !sourceInput.trim() ? 'disabled' : ''}`}
+                    disabled={sourceBusy || !canChangeSource || !sourceInput.trim()}
+                    onClick={saveCurrentSource}
+                  >
+                    save
+                  </button>
+                  <button
+                    className={`settings-theme-btn ${sourceBusy || !canChangeSource ? 'disabled' : ''}`}
+                    disabled={sourceBusy || !canChangeSource}
+                    onClick={clearCurrentSource}
+                  >
+                    clear
+                  </button>
+                </div>
+                <div className="settings-label">avoid words</div>
+                <textarea
+                  className="settings-input settings-textarea"
+                  value={resolverAvoidText}
+                  onChange={(e) => setResolverAvoidText(e.target.value)}
+                />
+                {sourceMessage && <div className="settings-source-note">{sourceMessage}</div>}
+                {settingsError && <div className="settings-error">{settingsError}</div>}
               </>
             ) : showPlaylistView ? (
               <>

@@ -7,12 +7,12 @@
  * Same interface as useAudioPlayer.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { takeShuffleIndex } from './shuffleBag.js';
 
 const FAILED_TRACK_DELAY = 1200;
 
-export default function useSpotifyPlayer(tracks, playMode = 'normal', initialState = {}) {
+export default function useSpotifyPlayer(tracks, playMode = 'normal', initialState = {}, resolverOptions = {}) {
   const audioRef = useRef(new Audio());
   const playModeRef = useRef(playMode);
   playModeRef.current = playMode;
@@ -22,6 +22,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
   const shuffleBagRef = useRef([]);
   const restoreTimeRef = useRef(initialState.currentTime || 0);
   const autoplayKey = initialState.autoplayKey || 0;
+  const resolverKey = useMemo(() => JSON.stringify(resolverOptions || {}), [resolverOptions]);
   const lastAutoplayKeyRef = useRef(autoplayKey);
   const [trackIndex, setTrackIndex] = useState(initialState.trackIndex || 0);
 
@@ -120,9 +121,10 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
 
     async function loadStream() {
       try {
-        const url = t.videoId
-          ? await window.cupid.getStreamUrlById(t.videoId)
-          : await window.cupid.getStreamUrl(t.title, t.artist);
+        const videoId = t.sourceVideoId || t.videoId;
+        const url = videoId
+          ? await window.cupid.getStreamUrlById(videoId)
+          : await window.cupid.getStreamUrl(t.title, t.artist, resolverOptions);
         if (cancelled) return;
         // setting src triggers loading; an explicit audio.load() would reset it
         audio.src = url;
@@ -158,7 +160,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
       cancelled = true;
       if (restoreMetadata) audio.removeEventListener('loadedmetadata', restoreMetadata);
     };
-  }, [trackIndex, tracks, autoplayKey, markTrackFailed]);
+  }, [trackIndex, tracks, autoplayKey, resolverKey, markTrackFailed]);
 
   // ── Precompute next index + prefetch surrounding tracks ───
   useEffect(() => {
@@ -174,10 +176,11 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
       const t = tracks[idx];
       if (!t) return;
       prefetched.add(idx);
-      if (t.videoId) {
-        window.cupid.getStreamUrlById(t.videoId).catch(() => {});
+      const videoId = t.sourceVideoId || t.videoId;
+      if (videoId) {
+        window.cupid.getStreamUrlById(videoId).catch(() => {});
       } else {
-        window.cupid.getStreamUrl(t.title, t.artist).catch(() => {});
+        window.cupid.getStreamUrl(t.title, t.artist, resolverOptions).catch(() => {});
       }
     };
 
@@ -199,7 +202,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
       prefetch((trackIndex + 2) % tracks.length);
       prefetch((trackIndex - 1 + tracks.length) % tracks.length);
     }
-  }, [trackIndex, tracks, playMode]);
+  }, [trackIndex, tracks, playMode, resolverKey]);
 
   // ── Audio event listeners ─────────────────────────────────
   useEffect(() => {

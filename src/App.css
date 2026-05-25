@@ -357,6 +357,39 @@
   font-weight: 400;
 }
 
+.settings-source-card {
+  border: calc(1 / 306 * 100vw) solid var(--color-secondary);
+  border-radius: calc(2 / 306 * 100vw);
+  padding: calc(5 / 306 * 100vw);
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 / 306 * 100vw);
+}
+
+.settings-source-card span,
+.settings-source-card strong,
+.settings-source-card small,
+.settings-source-note {
+  font-family: 'Rainyhearts', monospace;
+  color: var(--color-panel-text);
+  line-height: 1;
+}
+
+.settings-source-card span,
+.settings-source-card small,
+.settings-source-note {
+  font-size: calc(9 / 306 * 100vw);
+  opacity: 0.75;
+}
+
+.settings-source-card strong {
+  font-size: calc(12 / 306 * 100vw);
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .settings-help {
   border: calc(1 / 306 * 100vw) solid var(--color-panel-text);
   border-radius: calc(2 / 306 * 100vw);

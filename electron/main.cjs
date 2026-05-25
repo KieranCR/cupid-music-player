@@ -143,6 +143,10 @@ let videoIdCacheLoaded = false;
 let videoIdCacheFile = null;
 let videoIdSaveTimer = null;
 
+function streamCacheKey(title, artist) {
+  return `${title}::${artist}`;
+}
+
 function loadVideoIdCache() {
   if (videoIdCacheLoaded) return;
   videoIdCacheLoaded = true;
@@ -203,6 +207,61 @@ function getYtDlpPath() {
 
 const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
+function parseYouTubeVideoId(input) {
+  const value = String(input || '').trim();
+  if (YT_ID_RE.test(value)) return value;
+
+  try {
+    const url = new URL(value);
+    if (url.hostname === 'youtu.be') {
+      const id = url.pathname.replace(/^\/+/, '').split('/')[0];
+      return YT_ID_RE.test(id) ? id : null;
+    }
+
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'shorts' || parts[0] === 'embed' || parts[0] === 'v') {
+      return YT_ID_RE.test(parts[1]) ? parts[1] : null;
+    }
+
+    const id = url.searchParams.get('v');
+    return YT_ID_RE.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+function cleanAvoidWords(words) {
+  if (!Array.isArray(words)) return [];
+  return words
+    .map((word) => String(word || '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function textIncludesAvoidWord(text, words) {
+  const value = String(text || '').toLowerCase();
+  return words.some((word) => value.includes(word));
+}
+
+function textFromSearchItem(item) {
+  const chunks = [
+    item?.title?.text,
+    item?.title,
+    item?.name,
+    item?.artist?.text,
+    item?.artist,
+    item?.album?.text,
+    item?.album,
+  ];
+
+  if (Array.isArray(item?.artists)) {
+    for (const artist of item.artists) {
+      chunks.push(artist?.name, artist?.text);
+    }
+  }
+
+  return chunks.filter(Boolean).join(' ');
+}
+
 // youtubei.js handles YT Music search (audio uploads, not music videos).
 // URL extraction stays on yt-dlp — YT now withholds stream URLs from WEB
 // client responses without a PoToken, which youtubei.js can't generate.
@@ -222,15 +281,20 @@ function getInnertube() {
   return innertubePromise;
 }
 
-async function searchYouTubeMusic(title, artist) {
+async function searchYouTubeMusic(title, artist, options = {}) {
   const yt = await getInnertube();
   const search = await yt.music.search(`${title} ${artist}`, { type: 'song' });
+  const avoidWords = cleanAvoidWords(options.avoidWords);
 
   const ids = [];
+  const fallbackIds = [];
   const add = (item) => {
-    if (item?.id && YT_ID_RE.test(item.id) && !ids.includes(item.id)) {
-      ids.push(item.id);
-    }
+    if (!item?.id || !YT_ID_RE.test(item.id) || fallbackIds.includes(item.id)) return;
+    fallbackIds.push(item.id);
+
+    const text = textFromSearchItem(item);
+    if (avoidWords.length > 0 && textIncludesAvoidWord(text, avoidWords)) return;
+    ids.push(item.id);
   };
 
   for (const item of search.songs?.contents || []) {
@@ -248,8 +312,9 @@ async function searchYouTubeMusic(title, artist) {
     }
   }
 
-  if (ids.length === 0) throw new Error('No song result');
-  return ids;
+  if (ids.length > 0) return ids;
+  if (fallbackIds.length > 0 && avoidWords.length === 0) return fallbackIds;
+  throw new Error(avoidWords.length > 0 ? 'No unblocked song result' : 'No song result');
 }
 
 async function ytDlpExtract(target) {
@@ -263,20 +328,33 @@ async function ytDlpExtract(target) {
   return stdout.trim();
 }
 
-async function ytDlpSearch(title, artist) {
+async function ytDlpSearch(title, artist, options = {}) {
+  const avoidWords = cleanAvoidWords(options.avoidWords);
   const { stdout } = await execFileAsync(getYtDlpPath(), [
-    `ytsearch1:"${title}" ${artist}`,
-    '-f', 'bestaudio[ext=m4a]/bestaudio',
-    '--no-playlist',
+    `ytsearch${SEARCH_RESULT_LIMIT}:"${title}" ${artist}`,
+    '--flat-playlist',
     '--no-warnings',
-    '--print', '%(id)s',
-    '-g',
+    '--print', '%(id)s\t%(title)s',
   ], { timeout: 15000 });
-  const lines = stdout.trim().split('\n').map((l) => l.trim()).filter(Boolean);
-  const id = lines.find((l) => YT_ID_RE.test(l));
-  const url = lines.find((l) => l.startsWith('http'));
-  if (!id || !url) throw new Error('yt-dlp search returned no usable result');
-  return { id, url };
+  const candidates = stdout.trim().split('\n')
+    .map((line) => {
+      const [id, ...titleParts] = line.trim().split('\t');
+      return { id, title: titleParts.join('\t') };
+    })
+    .filter((item) => YT_ID_RE.test(item.id))
+    .filter((item) => avoidWords.length === 0 || !textIncludesAvoidWord(item.title, avoidWords));
+
+  let lastError = null;
+  for (const item of candidates) {
+    try {
+      const url = await resolveStreamUrl(item.id);
+      return { id: item.id, url };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('yt-dlp search returned no usable result');
 }
 
 // videoId → { url, time }. yt-dlp URLs last ~30min — same TTL as streamCache
@@ -318,8 +396,8 @@ async function firstPlayableVideo(ids) {
   throw lastError || new Error('No playable result');
 }
 
-async function getStreamUrl(title, artist) {
-  const cacheKey = `${title}::${artist}`;
+async function getStreamUrl(title, artist, options = {}) {
+  const cacheKey = streamCacheKey(title, artist);
   const cached = streamCache.get(cacheKey);
   if (cached && Date.now() - cached.time < CACHE_TTL) return cached.url;
 
@@ -342,10 +420,10 @@ async function getStreamUrl(title, artist) {
 
       if (!videoId) {
         try {
-          videoId = await firstPlayableVideo(await searchYouTubeMusic(title, artist));
+          videoId = await firstPlayableVideo(await searchYouTubeMusic(title, artist, options));
         } catch (err) {
           console.warn('[youtubei search] fallback to yt-dlp:', err.message);
-          const result = await ytDlpSearch(title, artist);
+          const result = await ytDlpSearch(title, artist, options);
           videoId = result.id;
           // We already have a usable URL from yt-dlp — seed the decipher cache
           decipheredCache.set(videoId, { url: result.url, time: Date.now() });
@@ -368,6 +446,28 @@ async function getStreamUrl(title, artist) {
 
 // Direct cupid-audio URL for a known YouTube video ID — skips the search step
 // used by Spotify/Apple.
+async function saveStreamSource(title, artist, source) {
+  const videoId = parseYouTubeVideoId(source);
+  if (!videoId) throw new Error('Enter a YouTube video URL or ID.');
+
+  await resolveStreamUrl(videoId);
+
+  loadVideoIdCache();
+  const cacheKey = streamCacheKey(title, artist);
+  videoIdCache.set(cacheKey, videoId);
+  streamCache.delete(cacheKey);
+  persistVideoIdCache();
+  return videoId;
+}
+
+function clearStreamSource(title, artist) {
+  loadVideoIdCache();
+  const cacheKey = streamCacheKey(title, artist);
+  videoIdCache.delete(cacheKey);
+  streamCache.delete(cacheKey);
+  persistVideoIdCache();
+}
+
 async function streamUrlForVideoId(videoId) {
   if (!YT_ID_RE.test(videoId)) throw new Error('Invalid YouTube video ID');
   await resolveStreamUrl(videoId);
@@ -707,12 +807,20 @@ ipcMain.handle('save-apple-music-config', (_e, config) => {
   return saveAppleMusicConfig(config);
 });
 
-ipcMain.handle('get-stream-url', async (_e, title, artist) => {
+ipcMain.handle('get-stream-url', async (_e, title, artist, options) => {
   try {
-    return await getStreamUrl(title, artist);
+    return await getStreamUrl(title, artist, options);
   } catch (err) {
     throw new Error(`Failed to get stream: ${err.message}`);
   }
+});
+
+ipcMain.handle('save-stream-source', async (_e, title, artist, source) => {
+  return await saveStreamSource(title, artist, source);
+});
+
+ipcMain.handle('clear-stream-source', (_e, title, artist) => {
+  clearStreamSource(title, artist);
 });
 
 ipcMain.handle('get-local-playlist', async () => {
