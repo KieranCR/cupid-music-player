@@ -328,13 +328,19 @@ export default function App() {
 
   useEffect(() => { loadLocalPlaylist(); }, [loadLocalPlaylist]);
 
+  const resumeAutoplay = resumeState
+    ? resumeState.wasPlaying !== false
+    : false;
+
   const local = useAudioPlayer(localTracks, playMode, window.cupid?.getLocalAudioPath, {
     trackIndex: resumeState?.source === 'local' ? resumeState.trackIndex : 0,
     currentTime: resumeState?.source === 'local' ? resumeState.currentTime : 0,
+    autoplay: resumeState?.source === 'local' && resumeAutoplay,
   });
   const streaming = useSpotifyPlayer(streamTracks, playMode, {
     trackIndex: resumeState?.source === 'streaming' ? resumeState.trackIndex : 0,
     currentTime: resumeState?.source === 'streaming' ? resumeState.currentTime : 0,
+    autoplay: resumeState?.source === 'streaming' && resumeAutoplay,
     autoplayKey: streamAutoplayKey,
   });
   const player = source === 'streaming' ? streaming : local;
@@ -420,13 +426,14 @@ export default function App() {
         musicService,
         trackIndex,
         currentTime,
+        wasPlaying: isPlaying,
         streamTracks: source === 'streaming' ? streamTracks : [],
         savedAt: Date.now(),
       }));
     } catch {
       // ignore
     }
-  }, [source, musicService, trackIndex, currentTime, streamTracks, localTracks.length]);
+  }, [source, musicService, trackIndex, currentTime, isPlaying, streamTracks, localTracks.length]);
 
   // ── Fetch Spotify playlists ────────────────────────────
   const loadSpotifyPlaylists = useCallback((silent = false) => {

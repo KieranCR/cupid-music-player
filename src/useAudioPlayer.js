@@ -24,7 +24,7 @@ export default function useAudioPlayer(tracks, playMode = 'normal', getAudioPath
     if (trackIndex >= tracks.length) setTrackIndex(0);
   }
 
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(!!initialState.autoplay);
   const isPlayingRef = useRef(false);
   isPlayingRef.current = isPlaying;
   const [progress, setProgress] = useState(0);

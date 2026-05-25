@@ -36,7 +36,7 @@ export default function useSpotifyPlayer(tracks, playMode = 'normal', initialSta
     setTrackIndex(0);
   }
   const [isPlaying, setIsPlaying] = useState(false);
-  const wantsPlayRef = useRef(false);
+  const wantsPlayRef = useRef(!!initialState.autoplay);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
