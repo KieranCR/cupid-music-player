@@ -352,6 +352,56 @@
   font-weight: 400;
 }
 
+.settings-help {
+  border: calc(1 / 306 * 100vw) solid var(--color-panel-text);
+  border-radius: calc(2 / 306 * 100vw);
+  padding: calc(6 / 306 * 100vw);
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 / 306 * 100vw);
+}
+
+.settings-help-copy,
+.settings-help-list span,
+.settings-help-list code {
+  font-family: 'Rainyhearts', monospace;
+  color: var(--color-panel-text);
+  line-height: 1.15;
+}
+
+.settings-help-copy {
+  font-size: calc(10 / 306 * 100vw);
+  opacity: 0.85;
+}
+
+.settings-help-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 / 306 * 100vw);
+}
+
+.settings-help-list span {
+  font-size: calc(10 / 306 * 100vw);
+}
+
+.settings-help-list code {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: calc(9 / 306 * 100vw);
+  background: rgba(0, 0, 0, 0.25);
+  border: calc(1 / 306 * 100vw) solid var(--color-secondary);
+  border-radius: calc(2 / 306 * 100vw);
+  padding: calc(4 / 306 * 100vw);
+  overflow-wrap: anywhere;
+}
+
+.settings-help-link {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
 .settings-playlist-list {
   max-height: calc(70 / 306 * 100vw);
   overflow-y: auto;

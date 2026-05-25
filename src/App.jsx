@@ -79,6 +79,7 @@ const SLEEP_TIMER_OPTIONS = [
 
 const RESUME_KEY = 'cupid-player-resume';
 const NIGHT_MODE_KEY = 'cupid-player-night-mode';
+const SPOTIFY_REDIRECT_URI = 'http://127.0.0.1:5173/callback';
 
 function readResumeState() {
   try {
@@ -202,6 +203,32 @@ function AboutLink({ href, label, detail }) {
       <span>{label}</span>
       <strong>{detail}</strong>
     </a>
+  );
+}
+
+function SpotifySetupHelp() {
+  return (
+    <div className="settings-help">
+      <div className="settings-help-copy">
+        create a spotify app, copy its client id, then paste it into cupid player.
+      </div>
+      <div className="settings-help-list">
+        <span>1. open the spotify developer dashboard</span>
+        <span>2. create an app and choose web api if asked</span>
+        <span>3. add this redirect uri exactly</span>
+        <code>{SPOTIFY_REDIRECT_URI}</code>
+        <span>4. save, then copy the client id</span>
+      </div>
+      <div className="settings-help-copy">you do not need the client secret.</div>
+      <a
+        className="settings-theme-btn settings-help-link"
+        href="https://developer.spotify.com/dashboard"
+        target="_blank"
+        rel="noreferrer"
+      >
+        open dashboard
+      </a>
+    </div>
   );
 }
 
@@ -580,6 +607,7 @@ export default function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [showTrackView, setShowTrackView] = useState(false);
   const [showPlaylistView, setShowPlaylistView] = useState(false);
+  const [showSpotifyHelp, setShowSpotifyHelp] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [hoverProgress, setHoverProgress] = useState(null);
   const seekRef = useRef(null);
@@ -587,6 +615,7 @@ export default function App() {
   const toggleSettings = useCallback(() => {
     if (showSettings) {
       setShowAbout(false);
+      setShowSpotifyHelp(false);
     }
     setShowTrackView(false);
     setShowPlaylistView(false);
@@ -597,6 +626,7 @@ export default function App() {
     setShowAbout(false);
     setShowSettings(false);
     setShowPlaylistView(false);
+    setShowSpotifyHelp(false);
     setShowTrackView((v) => !v);
   }, []);
 
@@ -927,9 +957,9 @@ export default function App() {
       )}
 
       {/* Settings panel */}
-      {(showSettings || showTrackView || showPlaylistView) && (
+      {(showSettings || showTrackView || showPlaylistView || showSpotifyHelp) && (
         <div className="settings-panel">
-          <div className={`settings-panel-inner ${(showTrackView || showPlaylistView) ? 'track-picker' : ''}`}>
+          <div className={`settings-panel-inner ${(showTrackView || showPlaylistView || showSpotifyHelp) ? 'track-picker' : ''}`}>
             {showTrackView ? (
               <>
                 <button
@@ -976,6 +1006,19 @@ export default function App() {
                     refresh
                   </button>
                 )}
+              </>
+            ) : showSpotifyHelp ? (
+              <>
+                <button
+                  className="settings-theme-btn"
+                  onClick={() => setShowSpotifyHelp(false)}
+                >
+                  back
+                </button>
+                <div className="settings-panel-heading">
+                  <span>spotify setup</span>
+                </div>
+                <SpotifySetupHelp />
               </>
             ) : showAbout ? (
               <>
@@ -1091,20 +1134,28 @@ export default function App() {
                     value={spotifyClientId}
                     onChange={(e) => updateSpotifyClientId(e.target.value)}
                   />
-                  <button
-                    className={`settings-theme-btn ${!spotifyReady ? 'disabled' : ''}`}
-                    disabled={!spotifyReady}
-                    onClick={async () => {
-                      setSettingsError(null);
-                      try {
-                        await spotifyLogin();
-                      } catch (err) {
-                        setSettingsError(err.message);
-                      }
-                    }}
-                  >
-                    log in
-                  </button>
+                  <div className="settings-theme-row">
+                    <button
+                      className={`settings-theme-btn ${!spotifyReady ? 'disabled' : ''}`}
+                      disabled={!spotifyReady}
+                      onClick={async () => {
+                        setSettingsError(null);
+                        try {
+                          await spotifyLogin();
+                        } catch (err) {
+                          setSettingsError(err.message);
+                        }
+                      }}
+                    >
+                      log in
+                    </button>
+                    <button
+                      className="settings-theme-btn"
+                      onClick={() => setShowSpotifyHelp(true)}
+                    >
+                      setup help
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
