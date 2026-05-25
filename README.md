@@ -2,6 +2,10 @@
 
 A pixel-art desktop music player built with Electron, Vite, and React.
 
+This fork builds on [cupidity's original app](https://github.com/cupidbity/cupid-music-player) and focuses on making it easier to use as a normal desktop player: a Windows installer, Spotify setup inside the app, playlist and track picking, sleep timer, night mode, resume support, and a few playback/loading fixes.
+
+If you just want to try the app, grab the latest Windows installer from the [releases page](https://github.com/KieranCR/cupid-music-player/releases). The setup steps below are only needed if you want to run it from source.
+
 ## Features
 
 - Pixel-art UI with animated record player, spinning vinyl, and needle
@@ -9,12 +13,18 @@ A pixel-art desktop music player built with Electron, Vite, and React.
 - Interactive progress bar with draggable star indicator
 - Marquee scrolling for long track titles
 - Pink and blue theme switching with persistent preference
+- In-app Spotify Client ID setup
 - Spotify integration — browse your playlists and play tracks via yt-dlp
 - Apple Music integration — browse your library playlists via MusicKit JS
 - YouTube playlists — paste any public playlist URL (no sign-in) or sign in with Google to browse your own
+- Playlist and track picker for choosing what to play next
+- Sleep timer with optional countdown
+- Night mode
+- Resume support when reopening the app
 - Local MP3 playback
 - Custom frameless window with drag and resize
 - Dynamic dock/taskbar icon that matches the active theme
+- Windows installer with desktop/start menu shortcuts
 
 ## Screenshots
 
@@ -30,7 +40,7 @@ You only need 4 commands. Copy them one at a time:
 
 ```bash
 # 1. Download the code
-git clone https://github.com/cupidbity/cupid-music-player.git
+git clone https://github.com/KieranCR/cupid-music-player.git
 
 # 2. Step INTO the folder you just downloaded (this step is required!)
 cd cupid-music-player
