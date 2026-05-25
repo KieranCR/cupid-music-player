@@ -18,12 +18,12 @@ A pixel-art desktop music player built with Electron, Vite, and React.
 
 ## Screenshots
 
-![Alt text](https://kierancr.com/images/cupidplayer/cupid1.png "Main Player View")
-![Alt text](https://kierancr.com/images/cupidplayer/cupid2.png "Browse Tracks")
-![Alt text](https://kierancr.com/images/cupidplayer/cupid3.png "Alternate Blue Theme")
-![Alt text](https://kierancr.com/images/cupidplayer/cupid4.png "Night Mode & Settings")
-![Alt text](https://kierancr.com/images/cupidplayer/cupid5.png "Choose a Playlist")
-![Alt text](https://kierancr.com/images/cupidplayer/cupid6.png "Credits & Links")
+<img src="https://kierancr.com/images/cupidplayer/cupid1.png" alt="Main Player View" width="260">
+<img src="https://kierancr.com/images/cupidplayer/cupid2.png" alt="Browse Tracks" width="260">
+<img src="https://kierancr.com/images/cupidplayer/cupid3.png" alt="Alternate Blue Theme" width="260">
+<img src="https://kierancr.com/images/cupidplayer/cupid4.png" alt="Night Mode & Settings" width="260">
+<img src="https://kierancr.com/images/cupidplayer/cupid5.png" alt="Choose a Playlist" width="260">
+<img src="https://kierancr.com/images/cupidplayer/cupid6.png" alt="Credits & Links" width="260">
 
 ## Getting Started
 You only need 4 commands. Copy them one at a time:
