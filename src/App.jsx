@@ -211,7 +211,7 @@ function SpotifySetupHelp() {
   return (
     <div className="settings-help">
       <div className="settings-help-copy">
-        create a spotify app, copy its client id, then paste it into cupid player.
+        create a spotify app, copy its client id, then paste it into cupid player+.
       </div>
       <div className="settings-help-list">
         <span>1. open the spotify developer dashboard</span>
@@ -237,7 +237,7 @@ function AppleSetupHelp() {
   return (
     <div className="settings-help">
       <div className="settings-help-copy">
-        apple music needs a developer key so cupid player can create a musickit token.
+        apple music needs a developer key so cupid player+ can create a musickit token.
       </div>
       <div className="settings-help-list">
         <span>1. open apple developer keys</span>
@@ -810,7 +810,7 @@ export default function App() {
       <img src={assets.frame} className="layer" alt="" draggable={false} />
 
       {/* Window title */}
-      <div className="window-title">cupid player</div>
+      <div className="window-title">cupid player+</div>
 
       {/* Record player centered in frame */}
       <img src={assets.recordPlayer} className="record-player" alt="" draggable={false} />
@@ -1118,7 +1118,7 @@ export default function App() {
                   back
                 </button>
                 <div className="settings-about">
-                  <div className="settings-about-title">cupid player</div>
+                  <div className="settings-about-title">cupid player+</div>
                   <div className="settings-about-copy">a tiny desktop music player</div>
                   <div className="settings-about-list">
                     <AboutLink

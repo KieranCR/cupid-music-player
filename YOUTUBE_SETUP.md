@@ -1,6 +1,6 @@
 # YouTube Integration Setup
 
-Cupid Player supports two YouTube paths:
+Cupid Player Enhanced supports two YouTube paths:
 
 1. **Public playlist URLs** — paste any YouTube playlist link. **No sign-in, no API key, no subscription.** This works out of the box with no setup at all.
 2. **Your own playlists** — sign in with Google so the app can list the playlists on your account. Free quota via the YouTube Data API. **No YouTube Premium required**, on your account or the developer account.
@@ -11,7 +11,7 @@ Audio in both modes streams via yt-dlp (the same path used for Spotify and Apple
 
 ## 1. Public playlist URLs — zero setup
 
-Open Cupid Player, click the settings icon, pick **youtube** from the music dropdown, and paste a playlist URL into the box. Hit `load playlist`. That's it.
+Open Cupid Player Enhanced, click the settings icon, pick **youtube** from the music dropdown, and paste a playlist URL into the box. Hit `load playlist`. That's it.
 
 Recognised formats:
 - `https://www.youtube.com/playlist?list=PL...`
@@ -37,7 +37,7 @@ This needs a one-time setup of a Google OAuth client. **It's free** — YouTube 
    - **Test users: add the Google account you'll sign in with.** Apps in "Testing" status only allow listed test users — sign-in attempts from any other account get rejected with `Error 403: access_denied`. This is the most common setup snag.
 5. In **APIs & Services > Credentials**, click **Create Credentials > OAuth client ID**:
    - Application type: **Desktop app**
-   - Name: anything (e.g. "Cupid Player")
+   - Name: anything (e.g. "Cupid Player Enhanced")
 6. Copy the **Client ID** and **Client secret** from the dialog.
 
 > **About the client secret:** Google issues one even for Desktop app clients. It's not actually confidential — Google's own [native-app guidance](https://developers.google.com/identity/protocols/oauth2/native-app) explains that the secret is bundled in installed apps and PKCE is what protects the flow. It's safe to put in your local `.env`.
@@ -59,7 +59,7 @@ In the app: settings → pick **youtube** from the music dropdown → **log in w
 
 The app will open your **default system browser** to Google's consent page. (Google blocks OAuth inside Electron's embedded view, which is why we punt to the system browser.)
 
-Because the app is in "Testing" status, Google will show a yellow **"Google hasn't verified this app"** warning page even for test users. This is normal — click **Advanced** at the bottom-left, then **Go to cupid-player (unsafe)**. The "(unsafe)" wording is scary but is just Google's stock text for unverified apps; you're the developer, so it's your own app.
+Because the app is in "Testing" status, Google will show a yellow **"Google hasn't verified this app"** warning page even for test users. This is normal — click **Advanced** at the bottom-left, then **Go to cupid-player-enhanced (unsafe)**. The "(unsafe)" wording is scary but is just Google's stock text for unverified apps; you're the developer, so it's your own app.
 
 After approving the scope, the browser shows a confirmation page and the app lists your playlists. A "Liked Videos" entry is included automatically.
 
@@ -74,14 +74,14 @@ After approving the scope, the browser shows a confirmation page and the app lis
 ## Troubleshooting
 
 ### `Error 403: access_denied` on the Google sign-in page
-> *"cupid-player has not completed the Google verification process. The app is currently being tested..."*
+> *"cupid-player-enhanced has not completed the Google verification process. The app is currently being tested..."*
 
 The Google account you tried to sign in with isn't on the **Test users** list of your OAuth consent screen. Open the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent) in Google Cloud Console (correct project selected), scroll to **Test users**, click **+ Add users**, add your email, save. Then try logging in again.
 
 You can add up to 100 test users without going through Google's app verification.
 
 ### Yellow "Google hasn't verified this app" warning when signing in
-Expected — your app is in "Testing" status. Click **Advanced** at the bottom-left, then **Go to cupid-player (unsafe)**. Safe to bypass because it's your own app; the "unsafe" copy is generic.
+Expected — your app is in "Testing" status. Click **Advanced** at the bottom-left, then **Go to cupid-player-enhanced (unsafe)**. Safe to bypass because it's your own app; the "unsafe" copy is generic.
 
 ### Playlist plays back as silence / `502 Bad Gateway` from `cupid-audio://`
 The main process couldn't extract the audio stream from YouTube. Check the terminal where you ran `npm run dev` for a `[cupid-audio]` log line — that's the actual error.

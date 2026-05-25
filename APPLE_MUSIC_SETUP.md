@@ -1,12 +1,12 @@
 # Apple Music Integration Setup
 
-This guide walks you through connecting Cupid Player to your Apple Music account. Audio is streamed via YouTube (using yt-dlp), so **an Apple Music subscription is not required for playback** — your account is only used to browse your library playlists.
+This guide walks you through connecting Cupid Player Enhanced to your Apple Music account. Audio is streamed via YouTube (using yt-dlp), so **an Apple Music subscription is not required for playback** — your account is only used to browse your library playlists.
 
 ## 1. Create a MusicKit Key
 
 1. Go to [Apple Developer - Keys](https://developer.apple.com/account/resources/authkeys/list)
 2. Click **+** to create a new key
-3. Name it anything (e.g. "Cupid Player")
+3. Name it anything (e.g. "Cupid Player Enhanced")
 4. Check **MusicKit**
 5. Click **Configure**, select your app ID (or create one)
 6. Click **Continue** → **Register**
@@ -20,7 +20,7 @@ This guide walks you through connecting Cupid Player to your Apple Music account
 
 ## 3. Add Your Credentials
 
-1. Click the settings icon in Cupid Player
+1. Click the settings icon in Cupid Player Enhanced
 2. Switch to **apple** in the music dropdown
 3. Paste your Team ID and Key ID
 4. Open the downloaded `.p8` file in a text editor and paste the whole file contents into the private key box
@@ -51,7 +51,7 @@ npm run dev
 
 ## How It Works
 
-Cupid Player uses MusicKit JS to authenticate with Apple Music and fetch your library playlists and track metadata. Audio is then streamed from YouTube via yt-dlp, which searches for matching tracks automatically.
+Cupid Player Enhanced uses MusicKit JS to authenticate with Apple Music and fetch your library playlists and track metadata. Audio is then streamed from YouTube via yt-dlp, which searches for matching tracks automatically.
 
 ## Requirements
 

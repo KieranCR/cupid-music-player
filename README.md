@@ -1,8 +1,8 @@
-# cupid music player
+# Cupid Player Enhanced
 
 A pixel-art desktop music player built with Electron, Vite, and React.
 
-This fork builds on [cupidity's original app](https://github.com/cupidbity/cupid-music-player) and focuses on making it easier to use as a normal desktop player: a Windows installer, Spotify setup inside the app, playlist and track picking, sleep timer, night mode, resume support, and a few playback/loading fixes.
+Cupid Player Enhanced is an unofficial fork of [cupidity's original app](https://github.com/cupidbity/cupid-music-player). It focuses on making the player easier to use as a normal desktop app: a Windows installer, Spotify/Apple setup inside the app, playlist and track picking, sleep timer, night mode, resume support, and a few playback/loading fixes.
 
 If you just want to try the app, grab the latest Windows installer from the [releases page](https://github.com/KieranCR/cupid-music-player/releases). The setup steps below are only needed if you want to run it from source.
 
@@ -84,9 +84,9 @@ The local playlist is driven by a single file, `playlist.json`, that lives next 
 ### Where the audio folder lives
 
 - **Running from source (dev):** `audio/` in the project root.
-- **Installed app (macOS):** `~/Library/Application Support/Cupid Player/audio/`
-- **Installed app (Windows):** `%APPDATA%\Cupid Player\audio\`
-- **Installed app (Linux):** `~/.config/Cupid Player/audio/`
+- **Installed app (macOS):** `~/Library/Application Support/Cupid Player Enhanced/audio/`
+- **Installed app (Windows):** `%APPDATA%\Cupid Player Enhanced\audio\`
+- **Installed app (Linux):** `~/.config/Cupid Player Enhanced/audio/`
 
 On first launch, the installed app seeds this folder with the bundled defaults. After that it's yours to edit — the app never overwrites it.
 
@@ -175,10 +175,10 @@ npm run package
 
 **macOS:**
 ```bash
-cp -r "out/mac-arm64/Cupid Player.app" /Applications/
+cp -r "out/mac-arm64/Cupid Player Enhanced.app" /Applications/
 ```
 
-**Windows:** Run the installer from `out/Cupid Player Setup.exe`. If `npm run package` fails at the NSIS step with "Cannot create symbolic link," enable **Developer Mode** in Settings → System → For developers, then re-run. The unpacked app at `out/win-unpacked/Cupid Player.exe` is fully runnable in the meantime — no installer required.
+**Windows:** Run the installer from `out/Cupid Player Enhanced-Setup-1.0.1.exe`. If `npm run package` fails at the NSIS step with "Cannot create symbolic link," enable **Developer Mode** in Settings → System → For developers, then re-run. The unpacked app at `out/win-unpacked/Cupid Player Enhanced.exe` is fully runnable in the meantime — no installer required.
 
 **Linux:** Run the AppImage from `out/`.
 

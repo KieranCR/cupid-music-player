@@ -1,6 +1,6 @@
 # Spotify Integration Setup
 
-This guide walks you through connecting Cupid Player to your Spotify account. Audio is streamed via YouTube (using yt-dlp).
+This guide walks you through connecting Cupid Player Enhanced to your Spotify account. Audio is streamed via YouTube (using yt-dlp).
 
 > **Heads up — Spotify Premium required for the app owner.** As of February 2026, Spotify requires the account that creates the developer app to have an active Premium subscription. Without it, the API returns `403 Active premium subscription required for the owner of the app` for everyone using your app — even other users you've added to User Management. See [Spotify's announcement](https://developer.spotify.com/blog/2026-02-06-update-on-developer-access-and-platform-security) for details.
 
@@ -30,7 +30,7 @@ This guide walks you through connecting Cupid Player to your Spotify account. Au
 
 ## 3. Use Your Client ID
 
-Copy your **Client ID** from the app's dashboard. You can paste it directly into Cupid Player's Spotify settings when you log in.
+Copy your **Client ID** from the app's dashboard. You can paste it directly into Cupid Player Enhanced's Spotify settings when you log in.
 
 If you are developing locally and want a default value, you can also create a `.env` file in the project root:
    ```
@@ -61,7 +61,7 @@ npm run dev
 
 ## How It Works
 
-Cupid Player uses the Spotify Web API to fetch your playlists and track metadata (title, artist, album art). Audio is then streamed from YouTube using yt-dlp, which searches for matching tracks automatically.
+Cupid Player Enhanced uses the Spotify Web API to fetch your playlists and track metadata (title, artist, album art). Audio is then streamed from YouTube using yt-dlp, which searches for matching tracks automatically.
 
 ## Troubleshooting
 

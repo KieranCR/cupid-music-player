@@ -786,7 +786,7 @@ ipcMain.handle('youtube-oauth-start', async (_e, { clientId, scope, state, codeC
 
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       if (error) {
-        res.end(`<!doctype html><meta charset=utf-8><title>cupid player</title><style>body{font-family:system-ui;background:#1a1a1a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>Auth failed: ${error}. You can close this window.</div>`);
+        res.end(`<!doctype html><meta charset=utf-8><title>cupid player+</title><style>body{font-family:system-ui;background:#1a1a1a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>Auth failed: ${error}. You can close this window.</div>`);
         rejectCode(new Error(error));
       } else if (!code) {
         res.end('<!doctype html><meta charset=utf-8><div>Missing code. You can close this window.</div>');
@@ -795,7 +795,7 @@ ipcMain.handle('youtube-oauth-start', async (_e, { clientId, scope, state, codeC
         res.end('<!doctype html><meta charset=utf-8><div>State mismatch. You can close this window.</div>');
         rejectCode(new Error('OAuth state mismatch'));
       } else {
-        res.end('<!doctype html><meta charset=utf-8><title>cupid player</title><style>body{font-family:system-ui;background:#1a1a1a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>✓ Signed in — you can close this window and return to Cupid Player.</div>');
+        res.end('<!doctype html><meta charset=utf-8><title>cupid player+</title><style>body{font-family:system-ui;background:#1a1a1a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>✓ Signed in — you can close this window and return to Cupid Player Enhanced.</div>');
         resolveCode(code);
       }
 
