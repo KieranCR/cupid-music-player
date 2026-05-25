@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "A desktop media player",
+  "author": "Kieran",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -12,7 +13,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "electron": "electron .",
-    "package": "vite build && electron-builder",
+    "package": "vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder",
     "test": "vitest run"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
   "build": {
     "appId": "com.codedbycupidity.cupid-player",
     "productName": "Cupid Player",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -67,6 +69,14 @@
     "win": {
       "target": "nsis",
       "icon": "assets/pink/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Cupid Player",
+      "uninstallDisplayName": "Cupid Player"
     },
     "linux": {
       "target": "AppImage",
